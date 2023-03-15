@@ -40,7 +40,7 @@ def load(filename):
     labeledData=DataArray(labeledData.dsAttributes,labeledData.dsLabel)
     return labeledData
 
-def load_unnamed(filename,n_attr,n_label):
+def load_unnamed(filename,n_attr,n_label):#es load image pixel
     for i in range(n_label):
         labelToN['%d'%i]=i
         nToLabel[i]='%d'%i
