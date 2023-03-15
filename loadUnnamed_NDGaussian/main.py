@@ -1,7 +1,6 @@
 import numpy
 import matplotlib.pyplot as plt
 import numpy.linalg
-import scipy.linalg
 
 labelToN={'0':0}
 nToLabel=['0']
