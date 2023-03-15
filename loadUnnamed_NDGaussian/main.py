@@ -91,14 +91,14 @@ def plot_likehood_data1d(data):
     plt.show()
 
 def GAU_ND_logpdf(data,mu,C):#nd
-    GAU_ND_log_y=numpy.zeros((data.shape[0],data.shape[1]))
+    GAU_ND_log_y=numpy.zeros((data.shape[1],))
     M=data.shape[0]
     SIGMA=numpy.linalg.det(C)
     centered_data=data-mu
     
     GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*numpy.log(SIGMA)
     for i in range(data.shape[1]):    
-        GAU_ND_log_y[:,i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
+        GAU_ND_log_y[i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
 
     return GAU_ND_log_y
 
@@ -137,7 +137,7 @@ def test_gaussian_ND():
     pdfSol = numpy.load('llND.npy')
     
     pdfGau = GAU_ND_logpdf(XND,mu,C)#il vettore di probabilita[i] di XND[:,i] assumendo che i campioni XGAU[:,i] si distribuiscano come ND-gaussiana con medie mu e covarianze C
-
+   
     print(numpy.abs(pdfSol - pdfGau).mean())
 
 if __name__=="__main__":
