@@ -77,9 +77,6 @@ def plot_scatter(data,label,useUnnamed=False):
 
     plt.show()
 
-def calc_ICC(data,label):
-    pass
-   
 def meanAttr(data):
     meanV=data.mean(1).reshape((data.shape[0],1))
     
@@ -123,7 +120,7 @@ def corrM(data):
     return pearsonM
         
 def covM(data):
-    covM=numpy.cov(data)
+    covM=numpy.cov(data,bias=True)
 
     print("Covariance:")
     for i in range(data.shape[0]+1):
@@ -145,19 +142,18 @@ def covM(data):
     return covM
 
 def PCA(data,m_req_dim):#unsupervised
-
-    covarianceM=numpy.cov(data)#already center the data
+    covarianceM=numpy.cov(data,bias=True)#already center the data, but normalize by n-1
     eigenvalues,eigenvectors=numpy.linalg.eigh(covarianceM)
     eigenvalues = eigenvalues[ ::-1]
     P = eigenvectors[:, ::-1][:,0:m_req_dim] 
     projectedData=P.T@data
+
     print("Transform matrix:")
     print(P)
     return (projectedData,P)
 
 def PCA_treshold(data,treshold):#unsupervised
-
-    covarianceM=numpy.cov(data)#already center the data
+    covarianceM=numpy.cov(data,bias=True)#already center the data, but normalize by n-1
     eigenvalues,eigenvectors=numpy.linalg.eigh(covarianceM)
     eigenvalues = eigenvalues[::-1]
     eigenvectors = eigenvectors[:, ::-1]
@@ -174,36 +170,35 @@ def PCA_treshold(data,treshold):#unsupervised
     projectedData=P.T@data
     print("Transform matrix:")
     print(P)
-    return (projectedData,P)       
+    return (projectedData,P)
+
+def within_class_covariance_M(data,label):
+    N=label.shape[0]
+    Sw=numpy.zeros((data.shape[0],data.shape[0]))
+    for c in range(len(nToLabel)):
+        elementOfC=data[:,label==c]
+        nc=elementOfC.shape[1]
+        Sw+=(numpy.cov(elementOfC,bias=True)*nc)/N
+    return Sw
+
+def between_class_covariance_M(data,label):
+    N=label.shape[0]
+    avg=data.mean(axis=1).reshape(data.shape[0],1)
+    Sb=numpy.zeros((data.shape[0],data.shape[0]))
+    for c in range(len(nToLabel)):
+        elementOfC=data[:,label==c]
+        avgOfC=elementOfC.mean(axis=1).reshape(data.shape[0],1)
+        nc=elementOfC.shape[1]
+        Sb+=(((avgOfC-avg)@(avgOfC-avg).T)*nc)/N
+    return Sb
 
 def LDA(data,label):#supervised
     m=2
-    avgClass=[]
-    for c in range(len(nToLabel)):
-        avgClass.append(numpy.mean(data[:,label==c],axis=1))
-    avgClass=numpy.vstack(avgClass).T
-
-    Sw=numpy.zeros((data.shape[0],data.shape[0]))
-    N=label.shape[0]
-    for c in range(len(nToLabel)):
-        for i in range(data[:,label==c].shape[1]):
-            Sw+=(((data[:,label==c][:,i]-avgClass[:,c]).reshape(data.shape[0],1))@((data[:,label==c][:,i]-avgClass[:,c]).reshape(1,data.shape[0])))/N
-
-    nc=[]
-    for c in range(len(nToLabel)):
-        nc.append(data[:,label==c].shape[1])
-    nc=numpy.vstack(nc).T
-    
-    avgTot=numpy.mean(data,axis=1)
-
-    Sb=numpy.zeros((data.shape[0],data.shape[0]))
-    for c in range(len(nToLabel)):
-        Sb+=nc[0,c]*(((avgClass[:,c]-avgTot).reshape(data.shape[0],1))@((avgClass[:,c]-avgTot).reshape(1,data.shape[0])))/N
-
+    Sw=within_class_covariance_M(data,label)
+    Sb=between_class_covariance_M(data,label)
     s,U=scipy.linalg.eigh(Sb,Sw)#solve the generalized eigenvalue problem
     W=U[:,::-1][:,0:m]
     projectedData=W.T@data
-
     print("Transform matrix:")
     print(W)
     return (projectedData,W)
@@ -211,27 +206,9 @@ def LDA(data,label):#supervised
 def LDA_2proj(data,label):#supervised
     m=2
     avgClass=[]
-    for c in range(len(nToLabel)):
-        avgClass.append(numpy.mean(data[:,label==c],axis=1))
-    avgClass=numpy.vstack(avgClass).T
-
-    Sw=numpy.zeros((data.shape[0],data.shape[0]))
-    N=label.shape[0]
-    for c in range(len(nToLabel)):
-        for i in range(data[:,label==c].shape[1]):
-            Sw+=(((data[:,label==c][:,i]-avgClass[:,c]).reshape(data.shape[0],1))@((data[:,label==c][:,i]-avgClass[:,c]).reshape(1,data.shape[0])))/N
-
-    nc=[]
-    for c in range(len(nToLabel)):
-        nc.append(data[:,label==c].shape[1])
-    nc=numpy.vstack(nc).T
+    Sw=within_class_covariance_M(data,label)
+    Sb=between_class_covariance_M(data,label)
     
-    avgTot=numpy.mean(data,axis=1)
-
-    Sb=numpy.zeros((data.shape[0],data.shape[0]))
-    for c in range(len(nToLabel)):
-        Sb+=nc[0,c]*(((avgClass[:,c]-avgTot).reshape(data.shape[0],1))@((avgClass[:,c]-avgTot).reshape(1,data.shape[0])))/N
-
     U,eigv1,_=numpy.linalg.svd(Sw)
     P1=(U@numpy.diag(1.0/(eigv1**0.5)))@U.T
     SBT=(P1@Sb)@P1.T#transformed between class covariance
@@ -257,6 +234,8 @@ def visualizeData(labeledData):
    
     stdDevAttr(labeledData.dsAttributes)
 
+    covM(labeledData.dsAttributes)
+
     corrM(labeledData.dsAttributes)
 
 def testPCA(labeledData):
@@ -265,12 +244,12 @@ def testPCA(labeledData):
     print(CompareM)
     
     projectedData,P_T=PCA(labeledData.dsAttributes,2)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
     projectedData,P_T=PCA_treshold(labeledData.dsAttributes,0.97)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
 def testLDA(labeledData):
     CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
@@ -278,16 +257,16 @@ def testLDA(labeledData):
     print(CompareM)
 
     projectedData,P_T=LDA(labeledData.dsAttributes,labeledData.dsLabel)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
     projectedData,P_T=LDA_2proj(labeledData.dsAttributes,labeledData.dsLabel)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
 if __name__=="__main__":
     
     labeledData=load(FILENAME)
-    visualizeData(labeledData)
+    #visualizeData(labeledData)
     testPCA(labeledData)
     testLDA(labeledData)
