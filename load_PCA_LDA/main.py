@@ -244,12 +244,12 @@ def testPCA(labeledData):
     print(CompareM)
     
     projectedData,P_T=PCA(labeledData.dsAttributes,2)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
     projectedData,P_T=PCA_treshold(labeledData.dsAttributes,0.97)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
 def testLDA(labeledData):
     CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
@@ -257,16 +257,16 @@ def testLDA(labeledData):
     print(CompareM)
 
     projectedData,P_T=LDA(labeledData.dsAttributes,labeledData.dsLabel)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
     projectedData,P_T=LDA_2proj(labeledData.dsAttributes,labeledData.dsLabel)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
 if __name__=="__main__":
     
     labeledData=load(FILENAME)
-    #visualizeData(labeledData)
+    visualizeData(labeledData)
     testPCA(labeledData)
     testLDA(labeledData)
