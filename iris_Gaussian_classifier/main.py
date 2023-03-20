@@ -77,14 +77,14 @@ def MVG(trainData,trainLabel):
     for i in range(len(nToLabel)):
         Cc[:,:,i]+=numpy.cov(trainData[:,trainLabel==i],bias=True)
     
-    print("class means")
-    for i in range(len(nToLabel)):
-        print("mu%d"%i)
-        print(muc[:,:,i])
-    print("class covariance matrix")
-    for i in range(len(nToLabel)):
-        print("C%d"%i)
-        print(Cc[:,:,i])
+    #print("class means")
+    #for i in range(len(nToLabel)):
+    #    print("mu%d"%i)
+    #    print(muc[:,:,i])
+    #print("class covariance matrix")
+    #for i in range(len(nToLabel)):
+    #    print("C%d"%i)
+    #    print(Cc[:,:,i])
 
     return (muc,Cc)
 
@@ -99,37 +99,64 @@ def NDGaussian(data,mu,C):
 
     return Pdata
 
-def inferClass(testData,testLabel):
+def inferClass(testData,testLabel,muc,Cc):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
         S[i,:]+=NDGaussian(testData,muc[:,:,i],Cc[:,:,i])
     SJoint=S*numpy.array(PC).reshape((len(nToLabel),1))
     SMarg=SJoint.sum(axis=0).reshape((1,testData.shape[1]))    
     SPost=SJoint/SMarg
-    PredictedLabel=numpy.argmax(SPost,axis=0)
+    predictedLabel=numpy.argmax(SPost,axis=0)
 
-    A=PredictedLabel==testLabel
+    A=predictedLabel==testLabel
     acc=A.sum()/float(testData.shape[1])
     print("error rate: %f"%(1-acc))
+    return (predictedLabel,acc)
 
-def inferClassLog(testData,testLabel):
+def inferClassLog(testData,testLabel,muc,Cc):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
         S[i,:]+=GAU_ND_logpdf(testData,muc[:,:,i],Cc[:,:,i])
     SJoint=S+numpy.log(numpy.array(PC).reshape((len(nToLabel),1))) #use broadcasting *(4,1)->*(4,50)
     l=SJoint.argmax(axis=0)
     SPost=SJoint-(l+numpy.log((numpy.exp(SJoint-l).sum(axis=0))))
-    PredictedLabel=numpy.argmax(SPost,axis=0)
+    predictedLabel=numpy.argmax(SPost,axis=0)
     
-    A=PredictedLabel==testLabel
+    A=predictedLabel==testLabel
     acc=A.sum()/float(testData.shape[1])
     print("error rate: %f"%(1-acc))
+    return (predictedLabel,acc)
             
+def KFold(D,L,k,seed=0):
+    nFold=int(D.shape[1]/k)
+    numpy.random.seed(seed)
+    idx=numpy.random.permutation(D.shape[1])
+    acc=0.0
+    for i in range(k):
+        idxTrain=numpy.zeros(D.shape[1]-nFold,dtype=numpy.int32)
+        idxTrain[:i*nFold]=idx[:i*nFold]
+        idxTrain[i*nFold:]=idx[(i+1)*nFold:]
+        idxTest=idx[i*nFold:(i+1)*nFold]
+        print(idxTest)
+        print(idxTrain)
+        trainData=D[:,idxTrain]
+        testData=D[:,idxTest]
+        trainLabel=L[idxTrain]
+        testLabel=L[idxTest]
+
+        print("training set:%d"%(i+1))
+        (muc,Cc)=MVG(trainData,trainLabel)#calculate parameters here
+        (_,partialAcc)=inferClass(testData,testLabel,muc,Cc)#check accuracy here
+        acc+=partialAcc
+
+    acc/=float(k)
+    print("total accuracy:%f"%acc)
     
 
 if __name__=='__main__':
     labeledData=load(FILENAME)
     (trainData,trainLabel),(testData,testLabel)=split_db_2tol(labeledData.dsAttributes,labeledData.dsLabel)
     (muc,Cc)=MVG(trainData,trainLabel)
-    inferClass(testData,testLabel)
-    inferClassLog(testData,testLabel)
+    inferClass(testData,testLabel,muc,Cc)
+    inferClassLog(testData,testLabel,muc,Cc)
+    KFold(labeledData.dsAttributes,labeledData.dsLabel,150)
