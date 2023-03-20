@@ -141,13 +141,26 @@ def covM(data):
 
     return covM
 
+def PCA_solution(D,m):
+    mu=D.mean(1).reshape((D.shape[0],1))
+    C=numpy.dot(D-mu,(D-mu).T)/D.shape[1]
+    s,U=numpy.linalg.eigh(C)
+    U=U[:,::-1]
+    P=U[:,0,m]
+    return P
+
+def PCA_solution_svd(D,m):
+    mu=D.mean(1).reshape((D.shape[0],1))
+    C=numpy.dot(D-mu,(D-mu).T)/D.shape[1]
+    U,_,_=numpy.linalg.svd(C)
+    P=U[:,0:m]
+    return P
+
 def PCA(data,m_req_dim):#unsupervised
     covarianceM=numpy.cov(data,bias=True)#already center the data, but normalize by n-1
-    eigenvalues,eigenvectors=numpy.linalg.eigh(covarianceM)
-    eigenvalues = eigenvalues[ ::-1]
+    _,eigenvectors=numpy.linalg.eigh(covarianceM)#eigenvalues aren't necessary
     P = eigenvectors[:, ::-1][:,0:m_req_dim] 
     projectedData=P.T@data
-
     print("Transform matrix:")
     print(P)
     return (projectedData,P)
@@ -167,6 +180,33 @@ def PCA_treshold(data,treshold):#unsupervised
 
     print("Selected dimensions : %d"%required_dim)
     P=eigenvectors[:,0:required_dim]
+    projectedData=P.T@data
+    print("Transform matrix:")
+    print(P)
+    return (projectedData,P)
+
+def PCA_svd(data,m_req_dim):#unsupervised
+    covarianceM=numpy.cov(data,bias=True)#already center the data, but normalize by n-1
+    U,_,_=numpy.linalg.svd(covarianceM)#singularvalues aren't necessary
+    P = U[:,0:m_req_dim]
+    projectedData=P.T@data
+    print("Transform matrix:")
+    print(P)
+    return (projectedData,P)
+
+def PCA_treshold_svd(data,treshold):#unsupervised
+    covarianceM=numpy.cov(data,bias=True)#already center the data, but normalize by n-1
+    U,singularvalues,_=numpy.linalg.svd(covarianceM)
+
+    required_dim=1
+    explained_var=singularvalues[0]
+    tot_explained_var=singularvalues.sum()
+    while (explained_var/tot_explained_var)<treshold:
+        explained_var+=singularvalues[required_dim]
+        required_dim+=1
+
+    print("Selected dimensions : %d"%required_dim)
+    P=U[:,0:required_dim]
     projectedData=P.T@data
     print("Transform matrix:")
     print(P)
@@ -244,12 +284,21 @@ def testPCA(labeledData):
     print(CompareM)
     
     projectedData,P_T=PCA(labeledData.dsAttributes,2)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
     projectedData,P_T=PCA_treshold(labeledData.dsAttributes,0.97)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+
+    projectedData,P_T=PCA_svd(labeledData.dsAttributes,2)
+    #
+    #
+
+    projectedData,P_T=PCA_treshold_svd(labeledData.dsAttributes,0.97)
+    #
+    #
+
 
 def testLDA(labeledData):
     CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
@@ -267,6 +316,6 @@ def testLDA(labeledData):
 if __name__=="__main__":
     
     labeledData=load(FILENAME)
-    visualizeData(labeledData)
+    #visualizeData(labeledData)
     testPCA(labeledData)
-    testLDA(labeledData)
+    #testLDA(labeledData)
