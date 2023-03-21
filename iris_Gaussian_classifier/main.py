@@ -137,8 +137,6 @@ def KFold(D,L,k,seed=0):
         idxTrain[:i*nFold]=idx[:i*nFold]
         idxTrain[i*nFold:]=idx[(i+1)*nFold:]
         idxTest=idx[i*nFold:(i+1)*nFold]
-        print(idxTest)
-        print(idxTrain)
         trainData=D[:,idxTrain]
         testData=D[:,idxTest]
         trainLabel=L[idxTrain]
