@@ -8,6 +8,27 @@ nToLabel=['Iris-setosa','Iris-versicolor','Iris-virginica']
 attributeToN={'Sepal-length':0,'Sepal-width':1,'Petal-length':2,'Petal-width':3}
 nToAttribute=['Sepal-length','Sepal-width','Petal-length','Petal-width']
 FILENAME="iris.csv"
+NO_HIST=True
+NO_SCATTER=True
+
+    #exploiting broadcasting
+    #  s1  s1 ... s1  *  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
+    #  s2  s2     s2     u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
+    #  :   :      :      :   :       :       :      :          :
+    #  sn  sn ... sn     un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
+    #not exploit broadcasting
+    #  s1 0  ... 0    @  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
+    #  0  s2 ... 0       u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
+    #  :  :      :       :   :       :       :      :          :
+    #  0  0 ... sn       un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
+    #->s*U=(s*I)@U
+
+
+def vcol(v):
+    return v.reshape((v.size,1))
+
+def vrow(v):
+    return v.reshape((1,v.size))
 
 class DataList:
     def __init__(self):
@@ -41,6 +62,8 @@ def load(filename):
     return labeledData
 
 def plot_hist(data,label,useUnnamed=False):
+    if NO_HIST:
+        return
     print("Displaying histogram by attributes (distinct color for distinct label...)")
     for i in range(data.shape[0]):
         plt.figure()
@@ -58,6 +81,8 @@ def plot_hist(data,label,useUnnamed=False):
     plt.show()
 
 def plot_scatter(data,label,useUnnamed=False):
+    if NO_SCATTER:
+        return
     print("Displaying 2d scatter plot by attributes (distinct color for distinct label...)")
     for i in range(data.shape[0]):
         for j in range(data.shape[0]):
@@ -78,7 +103,7 @@ def plot_scatter(data,label,useUnnamed=False):
     plt.show()
 
 def meanAttr(data):
-    meanV=data.mean(1).reshape((data.shape[0],1))
+    meanV=vcol(data.mean(1))
     
     print("Mean:")
     for i in range(meanV.shape[0]):
@@ -88,7 +113,7 @@ def meanAttr(data):
     return meanV
 
 def stdDevAttr(data):
-    stdDevV=data.std(1).reshape((data.shape[0],1))
+    stdDevV=vcol(data.std(1))
 
     print("Standard Deviation:")
     for i in range(stdDevV.shape[0]):
@@ -142,7 +167,7 @@ def covM(data):
     return covM
 
 def PCA_solution(D,m):
-    mu=D.mean(1).reshape((D.shape[0],1))
+    mu=vcol(D.mean(1))
     C=numpy.dot(D-mu,(D-mu).T)/D.shape[1]
     s,U=numpy.linalg.eigh(C)
     U=U[:,::-1]
@@ -150,7 +175,7 @@ def PCA_solution(D,m):
     return P
 
 def PCA_solution_svd(D,m):
-    mu=D.mean(1).reshape((D.shape[0],1))
+    mu=vcol(D.mean(1))
     C=numpy.dot(D-mu,(D-mu).T)/D.shape[1]
     U,_,_=numpy.linalg.svd(C)
     P=U[:,0:m]
@@ -223,20 +248,21 @@ def within_class_covariance_M(data,label):
 
 def between_class_covariance_M(data,label):
     N=label.shape[0]
-    avg=data.mean(axis=1).reshape(data.shape[0],1)
+    avg=vcol(data.mean(axis=1))
     Sb=numpy.zeros((data.shape[0],data.shape[0]))
     for c in range(len(nToLabel)):
         elementOfC=data[:,label==c]
-        avgOfC=elementOfC.mean(axis=1).reshape(data.shape[0],1)
+        avgOfC=vcol(elementOfC.mean(axis=1))
         nc=elementOfC.shape[1]
         Sb+=(((avgOfC-avg)@(avgOfC-avg).T)*nc)/N
     return Sb
 
 def LDA(data,label):#supervised
-    m=2
+    m=len(nToLabel)-1#other directions are random
     Sw=within_class_covariance_M(data,label)
     Sb=between_class_covariance_M(data,label)
-    s,U=scipy.linalg.eigh(Sb,Sw)#solve the generalized eigenvalue problem
+    _,U=scipy.linalg.eigh(Sb,Sw)#solve the generalized eigenvalue problem
+    #eigenvalue Sw^-1@Sb , only C-1 eigenvectors are !=0 -> useless random eigenvectors
     W=U[:,::-1][:,0:m]
     projectedData=W.T@data
 
@@ -245,15 +271,15 @@ def LDA(data,label):#supervised
     return (projectedData,W)
 
 def LDA_2proj(data,label):#supervised
-    m=2
-    avgClass=[]
+    m=len(nToLabel)-1#other directions are random
     Sw=within_class_covariance_M(data,label)
     Sb=between_class_covariance_M(data,label)
     
     U,eigv1,_=numpy.linalg.svd(Sw)
     P1=(U@numpy.diag(1.0/(eigv1**0.5)))@U.T
     SBT=(P1@Sb)@P1.T#transformed between class covariance
-    P2,_,_=numpy.linalg.svd(SBT)
+    P2,eigv,_=numpy.linalg.svd(SBT)
+    #eigenvalue Sw^-1@Sb , only C-1 eigenvectors are !=0 -> useless random eigenvectors
     W=P1.T@P2[:,0:m]
     projectedData=W.T@data
 
@@ -261,62 +287,91 @@ def LDA_2proj(data,label):#supervised
     print(W)
     return (projectedData,W)
 
+def SbSw(D,L):
+    Sb=0
+    Sw=0
+    mu=vcol(D.mean(1))
+    for i in range(len(nToLabel)):
+        DCIs=D[:,L==i]
+        muCIs=vcol(DCIs.mean())
+        Sw+=numpy.dot(DCIs-muCIs,(DCIs-muCIs).T)
+        Sb+=DCIs.shape[1]*numpy.dot(muCIs-mu,(muCIs-mu).T)
+    Sw/=D.shape[1]
+    Sb/=D.shape[1]
+    return (Sb,Sw)
+
+def LDA_solution1(D,L,m):
+    Sb,Sw=SbSw(D,L)
+    s,U=scipy.linalg.eigh(Sb,Sw)
+    return U[:,::-1][:,0:m]
+
+def LDA_solution2(D,L,m):
+    Sb,Sw=SbSw(D,L)
+    U,s,_=numpy.linalg.svd(Sw)#s = 1d vector ->1/s 1d vector -> vcol column vector
+    P1=numpy.dot(U,vcol(1.0/s**0.5)*U.T)#may not multiply by U
+    SBTilde=numpy.dot(Sb,P1.T)
+    U,_,_=numpy.linalg.svd(SBTilde)
+    P2=U[:,0:m]
+    return numpy.dot(P1.T,P2)
+
 def visualizeData(labeledData):
     print("Attributes matrix:")
     print(labeledData.dsAttributes)
     print("Label vector:")
     print(labeledData.dsLabel)
-    
     plot_hist(labeledData.dsAttributes,labeledData.dsLabel)
-    
     plot_scatter(labeledData.dsAttributes,labeledData.dsLabel)
-   
     meanAttr(labeledData.dsAttributes)#mean along rows
-   
     stdDevAttr(labeledData.dsAttributes)
-
     covM(labeledData.dsAttributes)
-
     corrM(labeledData.dsAttributes)
 
 def testPCA(labeledData):
     CompareM=numpy.load("IRIS_PCA_matrix_m4.npy")
     print("Compare matrix:")
     print(CompareM)
+    testDIR=4
     
-    projectedData,P_T=PCA(labeledData.dsAttributes,2)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    projectedData,P_not_T=PCA(labeledData.dsAttributes,4)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
-    projectedData,P_T=PCA_treshold(labeledData.dsAttributes,0.97)
-    #plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    #plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    projectedData,P_not_T=PCA_treshold(labeledData.dsAttributes,1)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
-    projectedData,P_T=PCA_svd(labeledData.dsAttributes,2)
-    #
-    #
-
-    projectedData,P_T=PCA_treshold_svd(labeledData.dsAttributes,0.97)
-    #
-    #
-
+    projectedData,P_not_T=PCA_svd(labeledData.dsAttributes,4)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+   
+    projectedData,P_not_T=PCA_treshold_svd(labeledData.dsAttributes,1)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
 
 def testLDA(labeledData):
     CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
     print("Compare matrix:")
     print(CompareM)
 
-    projectedData,P_T=LDA(labeledData.dsAttributes,labeledData.dsLabel)
+    projectedData,P_not_T=LDA(labeledData.dsAttributes,labeledData.dsLabel)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
-
-    projectedData,P_T=LDA_2proj(labeledData.dsAttributes,labeledData.dsLabel)
-    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
-    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
-
-if __name__=="__main__":
+    print("check if LDA has %s non zero singular values"%(len(nToLabel)-1))
+    print(numpy.linalg.svd(numpy.hstack([CompareM, P_not_T]))[1])
     
+    projectedData,P_not_T=LDA_2proj(labeledData.dsAttributes,labeledData.dsLabel)
+    plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
+    plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    print("check if LDA has %s non zero singular values"%(len(nToLabel)-1))
+    print(numpy.linalg.svd(numpy.hstack([CompareM, P_not_T]))[1])
+
+    #P_not_T[:,i]=wi i-th vector of the basis
+    #P_not_T require to have columns that are lc of columns of CompareM
+    #hence we require that singular values !=0 are C-1
+    
+if __name__=="__main__":
+
     labeledData=load(FILENAME)
-    #visualizeData(labeledData)
-    #testPCA(labeledData)
-    testLDA(labeledData)
+    visualizeData(labeledData)
+    testPCA(labeledData)#not invarint to linear transformation
+    testLDA(labeledData)#invarint to linear transformation
