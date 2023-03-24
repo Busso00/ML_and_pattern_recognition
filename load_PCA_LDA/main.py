@@ -239,6 +239,7 @@ def LDA(data,label):#supervised
     s,U=scipy.linalg.eigh(Sb,Sw)#solve the generalized eigenvalue problem
     W=U[:,::-1][:,0:m]
     projectedData=W.T@data
+
     print("Transform matrix:")
     print(W)
     return (projectedData,W)
@@ -252,7 +253,7 @@ def LDA_2proj(data,label):#supervised
     U,eigv1,_=numpy.linalg.svd(Sw)
     P1=(U@numpy.diag(1.0/(eigv1**0.5)))@U.T
     SBT=(P1@Sb)@P1.T#transformed between class covariance
-    eigv2,P2=numpy.linalg.eig(SBT)
+    P2,_,_=numpy.linalg.svd(SBT)
     W=P1.T@P2[:,0:m]
     projectedData=W.T@data
 
@@ -317,5 +318,5 @@ if __name__=="__main__":
     
     labeledData=load(FILENAME)
     #visualizeData(labeledData)
-    testPCA(labeledData)
-    #testLDA(labeledData)
+    #testPCA(labeledData)
+    testLDA(labeledData)
