@@ -11,19 +11,6 @@ FILENAME="iris.csv"
 NO_HIST=True
 NO_SCATTER=True
 
-    #exploiting broadcasting
-    #  s1  s1 ... s1  *  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
-    #  s2  s2     s2     u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
-    #  :   :      :      :   :       :       :      :          :
-    #  sn  sn ... sn     un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
-    #not exploit broadcasting
-    #  s1 0  ... 0    @  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
-    #  0  s2 ... 0       u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
-    #  :  :      :       :   :       :       :      :          :
-    #  0  0 ... sn       un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
-    #->s*U=(s*I)@U
-
-
 def vcol(v):
     return v.reshape((v.size,1))
 
@@ -313,6 +300,17 @@ def LDA_solution2(D,L,m):
     U,_,_=numpy.linalg.svd(SBTilde)
     P2=U[:,0:m]
     return numpy.dot(P1.T,P2)
+    #exploiting broadcasting
+    #  s1  s1 ... s1  *  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
+    #  s2  s2     s2     u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
+    #  :   :      :      :   :       :       :      :          :
+    #  sn  sn ... sn     un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
+    #not exploit broadcasting
+    #  s1 0  ... 0    @  u11 u12 ... u1n  =  s1*u11 s1*u12 ... s1*u1n 
+    #  0  s2 ... 0       u21 u22 ... u2n     s2*u21 s2*u22 ... s2*u2n
+    #  :  :      :       :   :       :       :      :          :
+    #  0  0 ... sn       un1 un2 ... unn     sn*un1 sn*un2 ... sn*unn
+    #->s*U=(s*I)@U
 
 def visualizeData(labeledData):
     print("Attributes matrix:")
@@ -335,18 +333,30 @@ def testPCA(labeledData):
     projectedData,P_not_T=PCA(labeledData.dsAttributes,4)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #since the basis is orthonormal if P_not_T=CompareM <->PT@CompareM=I 
+    print("check if PCA is valid")
+    print(P_not_T.T@CompareM)
 
     projectedData,P_not_T=PCA_treshold(labeledData.dsAttributes,1)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #since the basis is orthonormal if P_not_T=CompareM <->PT@CompareM=I 
+    print("check if PCA is valid")
+    print(P_not_T.T@CompareM)
 
     projectedData,P_not_T=PCA_svd(labeledData.dsAttributes,4)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #since the basis is orthonormal if P_not_T=CompareM <->PT@CompareM=I 
+    print("check if PCA is valid")
+    print(P_not_T.T@CompareM)
    
     projectedData,P_not_T=PCA_treshold_svd(labeledData.dsAttributes,1)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
+    #since the basis is orthonormal if P_not_T=CompareM <->PT@CompareM=I 
+    print("check if PCA is valid")
+    print(P_not_T.T@CompareM)
 
 def testLDA(labeledData):
     CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
