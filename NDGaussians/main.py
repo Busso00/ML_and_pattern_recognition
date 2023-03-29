@@ -8,6 +8,12 @@ attributeToN={'0':0}
 nToAttribute=['0']
 FILENAME="iris.csv"
 
+def vcol(v):
+    return v.reshape((v.size,1))
+
+def vrow(v):
+    return v.reshape((1,v.size))
+
 class DataList:
     def __init__(self):
         self.dsAttributes=[]
@@ -105,7 +111,7 @@ def test_gaussian():
     XGAU = numpy.load('XGau.npy')
     print('XGAU samples')
     print(XGAU)
-    plot_hist(numpy.array(XGAU).reshape(1,10000),numpy.zeros(10000))#modified nbins
+    plot_hist(vrow(numpy.array(XGAU)),numpy.zeros(XGAU.size))#modified nbins
     #plot a gaussian
     plt.figure()
     XPlot = numpy.linspace(-8, 12, 1000)
