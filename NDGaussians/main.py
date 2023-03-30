@@ -70,21 +70,21 @@ def plot_hist(data,label,useUnnamed=False):
 
     plt.show()
         
-def GAU_pdf(x,mu,var):#1d
+def GAU_pdf(x,mu,var):#1d 2021/2022
     GAU_y=1/numpy.sqrt(2*numpy.pi*var)*numpy.exp(-((x-mu)**2)/(2*var))
     return GAU_y
 
-def GAU_logpdf(x,mu,var):#1d
+def GAU_logpdf(x,mu,var):#1d 2021/2022
     GAU_log_y=-1/2*numpy.log(2*numpy.pi)-1/2*numpy.log(var)-((x-mu)**2/(2*var))
     return GAU_log_y
 
-def loglikehood(data,mu,var):
+def loglikehood(data,mu,var):#2021/2022
     ll= GAU_logpdf(data,mu,var).sum()
     print("log-likehood of the best fit of your data into a gaussian(mean=data.mean var=data.var):")
     print(ll)
     return ll
 
-def plot_likehood_data1d(data):
+def plot_likehood_data1d(data):#2021/2022
     print("fitting your data into a gaussian...")
     plt.figure()
     plt.hist(data,bins=100,alpha=0.3,density=True)
@@ -95,19 +95,29 @@ def plot_likehood_data1d(data):
     loglikehood(data,data.mean(),data.var())
     plt.show()
 
-def GAU_ND_logpdf(data,mu,C):#nd
+def GAU_ND_logpdf(data,mu,C):#nd (2021/2022/2023)
     GAU_ND_log_y=numpy.zeros((data.shape[1],))
     M=data.shape[0]
-    SIGMA=numpy.linalg.det(C)
+    (_,logdetC)=numpy.linalg.slogdet(C)#first return value is sign of logdet
     centered_data=data-mu
     
-    GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*numpy.log(SIGMA)
-    for i in range(data.shape[1]):    
+    GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*logdetC
+    for i in range(data.shape[1]):#ask for optimization insight
         GAU_ND_log_y[i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
 
     return GAU_ND_log_y
 
-def test_gaussian():
+def ML_parameter_ND_GAU(data):#2022/2023
+    MLmu=vcol(data.mean(axis=1))
+    MLC=numpy.zeros((data.shape[0],data.shape[0]))
+    MLC+=numpy.cov(data,bias=True)
+    return (MLmu,MLC)
+
+def loglikelihood_ND(data,mu,C):#2022/2023
+    ll=GAU_ND_logpdf(data,mu,C).sum()
+    return ll
+
+def test_gaussian():#test 2021/2022
     XGAU = numpy.load('XGau.npy')
     print('XGAU samples')
     print(XGAU)
@@ -135,16 +145,64 @@ def test_gaussian():
     #loglikehood between data and best fit gaussian
     plot_likehood_data1d(XGAU)
 
-def test_gaussian_ND():
+def test_gaussian_ND():#test 2021/2022
+
     XND = numpy.load('XND.npy')
     mu = numpy.load('muND.npy')
     C = numpy.load('CND.npy')
     pdfSol = numpy.load('llND.npy')
+    pdfGau = GAU_ND_logpdf(XND, mu, C)
+    print("error on 2021/2022 solution")
+    print(numpy.abs(pdfSol - pdfGau).max())
+
+def test_gaussian_ND2():#test 2022/2023
     
-    pdfGau = GAU_ND_logpdf(XND,mu,C)#il vettore di probabilita[i] di XND[:,i] assumendo che i campioni XGAU[:,i] si distribuiscano come ND-gaussiana con medie mu e covarianze C
-   
-    print(numpy.abs(pdfSol - pdfGau).mean())
+    plt.figure()
+    XPlot = numpy.linspace(-8, 12, 1000)
+    m = numpy.ones((1,1)) * 1.0
+    C = numpy.ones((1,1)) * 2.0
+    plt.plot(XPlot.ravel(), numpy.exp(GAU_ND_logpdf(vrow(XPlot), m, C)))
+    plt.show()
+
+    pdfSol = numpy.load('llGAU.npy')
+    pdfGau = GAU_ND_logpdf(vrow(XPlot), m, C)
+    print("1-d error")
+    print(numpy.abs(pdfSol - pdfGau).max())
+
+    XND = numpy.load('XND2.npy')
+    mu = numpy.load('muND2.npy')
+    C = numpy.load('CND2.npy')
+    pdfSol = numpy.load('llND2.npy')
+    pdfGau = GAU_ND_logpdf(XND, mu, C)
+    print("error on 2022/2023 solution")
+    print(numpy.abs(pdfSol - pdfGau).max())
+
+    (MLmu,MLC)=ML_parameter_ND_GAU(XND)
+    print("MLmu-ND")
+    print(MLmu)
+    print("MLC-ND")
+    print(MLC)
+
+    print("loglikelihood for ML estimated parameters")
+    print(loglikelihood_ND(XND,MLmu,MLC))
+
+    X1D=numpy.load('X1D.npy')
+    (MLmu,MLC)=ML_parameter_ND_GAU(X1D)
+    print("MLmu-1D")
+    print(MLmu)
+    print("MLC-1D")
+    print(MLC)
+
+    plt.figure()
+    plt.hist(X1D.ravel(), bins=50, density=True)
+    XPlot = numpy.linspace(-8, 12, 1000)
+    plt.plot(XPlot.ravel(), numpy.exp(GAU_ND_logpdf(vrow(XPlot), MLmu, MLC)))
+    plt.show()
+
+    ll = loglikelihood_ND(X1D, MLmu, MLC)
+    print(ll)
 
 if __name__=="__main__":
-    test_gaussian()
-    test_gaussian_ND()
+    #test_gaussian()
+    #test_gaussian_ND()
+    test_gaussian_ND2()

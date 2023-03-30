@@ -125,11 +125,11 @@ def ND_GAU_pdf(data,mu,C):
 def GAU_ND_logpdf(data,mu,C):#nd
     GAU_ND_log_y=numpy.zeros((data.shape[1],))
     M=data.shape[0]
-    SIGMA=numpy.linalg.det(C)
+    (_,logdetC)=numpy.linalg.slogdet(C)#first return value is sign of logdet
     centered_data=data-mu
     
-    GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*numpy.log(SIGMA)
-    for i in range(data.shape[1]):    
+    GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*logdetC
+    for i in range(data.shape[1]):#ask for optimization insight
         GAU_ND_log_y[i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
 
     return GAU_ND_log_y
@@ -251,7 +251,10 @@ def KFold(D,L,k,seed=0,type=0):##type: 0 = MVG, 1 = Naive-Bayes, 2 = tied Cov, 3
             case 3:
                 (muc,Cc)=MVG_naiveBayes_tied(trainData,trainLabel)#Cc.shape=(n_attr)
                 (_,partialAcc)=inferClass_naiveBayes_tied(testData,testLabel,muc,Cc)
-            
+            case 4:
+                (muc,Cc)=MVG(trainData,trainLabel)#Cc.shape=(n_attr,n_attr,n_class)
+                (_,partialAcc)=inferClassLog(testData,testLabel,muc,Cc)
+
         acc+=partialAcc
 
     acc/=float(k)
@@ -272,3 +275,5 @@ if __name__=='__main__':
     KFold(labeledData.dsAttributes,labeledData.dsLabel,150,seed=0,type=2)
     print("leave one out Naive-Bayes tied covariance:")
     KFold(labeledData.dsAttributes,labeledData.dsLabel,150,seed=0,type=3)
+    print("leave one out MVG log:")
+    KFold(labeledData.dsAttributes,labeledData.dsLabel,150,seed=0,type=4)
