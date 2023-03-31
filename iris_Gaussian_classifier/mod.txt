@@ -1,0 +1,13 @@
+if(TEST==1):
+    print("error TiedNaiveBayes log posterior")
+    posterior=numpy.load('logPosterior_TiedNaiveBayes.npy')
+    print((posterior-SPost).max())
+    print("error TiedNaiveBayes log joint")
+    joint=numpy.load('logSJoint_TiedNaiveBayes.npy')
+    print((joint-SJoint).max())
+    print("error TiedNaiveBayes log joint LO")
+    LOO_joint=numpy.load('LOO_logSJoint_TiedNaiveBayes.npy')
+    print("NA")
+    print("error TiedNaiveBayes log marginal")
+    marginal=numpy.load('logMarginal_TiedNaiveBayes.npy')
+    print((marginal-SMarg).max())

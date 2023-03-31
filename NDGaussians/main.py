@@ -95,17 +95,43 @@ def plot_likehood_data1d(data):#2021/2022
     loglikehood(data,data.mean(),data.var())
     plt.show()
 
-def GAU_ND_logpdf(data,mu,C):#nd (2021/2022/2023)
-    GAU_ND_log_y=numpy.zeros((data.shape[1],))
+def GAU_ND_logpdf_chol(data,mu,C):#nd (2021/2022/2023) 
+    #To avoid numerical issues due to exponentiation of large numbers, in many practical cases it’s more
+    #convenient to work with the logarithm of the density
+    #exponentiaion of xTC-1x given x high dimensional possibly gives high value
+    Pdata=numpy.zeros((data.shape[1],))
     M=data.shape[0]
     (_,logdetC)=numpy.linalg.slogdet(C)#first return value is sign of logdet
     centered_data=data-mu
     
-    GAU_ND_log_y+=-M/2*numpy.log(2*numpy.pi)-1/2*logdetC
-    for i in range(data.shape[1]):#ask for optimization insight
-        GAU_ND_log_y[i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
+    Pdata+=-M/2*numpy.log(2*numpy.pi)-1/2*logdetC
 
-    return GAU_ND_log_y
+    L=numpy.linalg.cholesky(C)#O(n3)-> can be inefficient with high number of features
+    Y=numpy.linalg.inv(L)@centered_data
+    mahlanobisDistance=(Y**2).sum(axis=0)#distance for every sample->axis=0
+
+    Pdata-=1/2*mahlanobisDistance
+    #for i in range(data.shape[1]):#ask for optimization insight
+    #    Pdata[i]-=1/2*(centered_data[:,i].T@numpy.linalg.inv(C))@centered_data[:,i]
+    return Pdata
+
+def sol_GAU_ND_1sample(x,mu,C):
+    xc=x-mu
+    M=x.shape[0]
+    const=-0.5*M*numpy.log(2*numpy.pi)
+    logdet=numpy.linalg.slogdet(C)[1]
+    L=numpy.linalg.inv(C)
+    v=numpy.dot(xc.T,numpy.dot(L,xc)).ravel()
+
+def GAU_ND_logpdf(X,mu,C):
+    XC=X-mu
+    M=X.shape[0]
+    const=-0.5*M*numpy.log(2*numpy.pi)
+    logdet=numpy.linalg.slogdet(C)[1]
+    L=numpy.linalg.inv(C)
+    v=(XC*numpy.dot(L,XC)).sum(axis=0)
+    return const-0.5*logdet-0.5*v
+
 
 def ML_parameter_ND_GAU(data):#2022/2023
     MLmu=vcol(data.mean(axis=1))
