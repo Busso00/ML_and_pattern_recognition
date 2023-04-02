@@ -9,8 +9,7 @@ attributeToN={'Sepal-length':0,'Sepal-width':1,'Petal-length':2,'Petal-width':3}
 nToAttribute=['Sepal-length','Sepal-width','Petal-length','Petal-width']
 PC=[1/3,1/3,1/3]
 FILENAME="iris.csv"
-ERROR_RATE_ON_SINGLE_FOLD=False
-TEST=1
+TEST=2
 
 def vcol(v):
     return v.reshape((v.size,1))
@@ -77,33 +76,33 @@ def MVG(trainData,trainLabel):
     #mvg parameters
     muc=numpy.zeros((trainData.shape[0],1,len(nToLabel)))
     for i in range(len(nToLabel)):
-        muc[:,0,i]+=trainData[:,trainLabel==i].mean(axis=1)
+        muc[:,0,i]=trainData[:,trainLabel==i].mean(axis=1)
     Cc=numpy.zeros((trainData.shape[0],trainData.shape[0],len(nToLabel)))
     for i in range(len(nToLabel)):#cost N_ATTRxN_ATTRxN_DATA
-        Cc[:,:,i]+=numpy.cov(trainData[:,trainLabel==i],bias=True)
+        Cc[:,:,i]=numpy.cov(trainData[:,trainLabel==i],bias=True)
     return (muc,Cc)
 
 def MVG_NaiveBayes(trainData,trainLabel):#compute only variances
     #mvg parameters
     muc=numpy.zeros((trainData.shape[0],1,len(nToLabel)))
     for i in range(len(nToLabel)):
-        muc[:,0,i]+=trainData[:,trainLabel==i].mean(axis=1)
+        muc[:,0,i]=trainData[:,trainLabel==i].mean(axis=1)
     Cc=numpy.zeros((trainData.shape[0],len(nToLabel)))
     for i in range(len(nToLabel)):#cost N_ATTRxN_DATA
-        Cc[:,i]+=numpy.var(trainData[:,trainLabel==i],axis=1)
+        Cc[:,i]=numpy.var(trainData[:,trainLabel==i],axis=1)
     return (muc,Cc)
 
 def MVG_tied(trainData,trainLabel):#compute only one (unique for each class) covariance matrix
     muc=numpy.zeros((trainData.shape[0],1,len(nToLabel)))
     for i in range(len(nToLabel)):
-        muc[:,0,i]+=trainData[:,trainLabel==i].mean(axis=1)
+        muc[:,0,i]=trainData[:,trainLabel==i].mean(axis=1)
     Cc=within_class_covariance_M(trainData,trainLabel)#cost N_ATTRxN_ATTRxN_DATA maybe already calculated
     return (muc,Cc)
     
 def MVG_naiveBayes_tied(trainData,trainLabel):#compute only one (unique for each class) variances
     muc=numpy.zeros((trainData.shape[0],1,len(nToLabel)))
     for i in range(len(nToLabel)):
-        muc[:,0,i]+=trainData[:,trainLabel==i].mean(axis=1)
+        muc[:,0,i]=trainData[:,trainLabel==i].mean(axis=1)
     Cc=numpy.zeros((trainData.shape[0]))
     for i in range(len(nToLabel)):#cost N_ATTRxN_DATA
         elementOfC=trainData[:,trainLabel==i]
@@ -159,10 +158,14 @@ def GAU_ND_logpdf_naiveBayes(X,mu,C):#C is diagonal (diagonal vector)-> less com
     v=(XC**2*vcol(L)).sum(axis=0)
     return const-0.5*logdet-0.5*v
 
+#if output test is active in inferClass the number of operation increase by 2 op(if) for each bin
+#so worst case is if i use leave one out, but this approach is used with small dataset and the 
+#bigger part of computation is due to training
+
 def inferClass(testData,testLabel,muc,Cc):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_pdf(testData,muc[:,:,i],Cc[:,:,i])
+        S[i,:]=GAU_ND_pdf(testData,muc[:,:,i],Cc[:,:,i])
     
     SJoint=S*vcol(numpy.array(PC))
     SMarg=vrow(SJoint.sum(axis=0))    
@@ -174,21 +177,19 @@ def inferClass(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error MVG posterior")
-        posterior_MVG=numpy.load('Posterior_MVG.npy')
+        posterior_MVG=numpy.load('solution/Posterior_MVG.npy')
         print((posterior_MVG-SPost).max())
         print("error MVG joint")
-        joint_MVG=numpy.load('SJoint_MVG.npy')
+        joint_MVG=numpy.load('solution/SJoint_MVG.npy')
         print((joint_MVG-SJoint).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
-    return (predictedLabel,acc,SPost,SJoint)
+    return (predictedLabel,acc)
 
-def inferClassLog(testData,testLabel,muc,Cc):
+def inferClassLog(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_logpdf(testData,muc[:,:,i],Cc[:,:,i])
-    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting *(4,1)->*(4,50)
+        S[i,:]=GAU_ND_logpdf(testData,muc[:,:,i],Cc[:,:,i])
+    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
     l=SJoint.argmax(axis=0)
     SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
     SPost=SJoint-SMarg
@@ -199,26 +200,25 @@ def inferClassLog(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error MVG log posterior")
-        posterior=numpy.load('logPosterior_MVG.npy')
+        posterior=numpy.load('solution/logPosterior_MVG.npy')
         print((posterior-SPost).max())
         print("error MVG log joint")
-        joint=numpy.load('logSJoint_MVG.npy')
+        joint=numpy.load('solution/logSJoint_MVG.npy')
         print((joint-SJoint).max())
-        print("error MVG log joint LO")
-        LOO_joint=numpy.load('LOO_logSJoint_MVG.npy')
-        print("NA")
         print("error MVG log marginal")
-        marginal=numpy.load('logMarginal_MVG.npy')
+        marginal=numpy.load('solution/logMarginal_MVG.npy')
         print((marginal-SMarg).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
+    if(TEST==2):
+        print("error MVG Leave One Out log joint")
+        print((VJoint-SJoint).max())
+
     return (predictedLabel,acc)
 
 def inferClass_naiveBayes(testData,testLabel,muc,Cc):#more accurate features of my data are uncorrelated (converge with less training data)
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_pdf_naiveBayes(testData,muc[:,:,i],Cc[:,i])
+        S[i,:]=GAU_ND_pdf_naiveBayes(testData,muc[:,:,i],Cc[:,i])
     SJoint=S*vcol(numpy.array(PC))
     SMarg=vrow(SJoint.sum(axis=0))    
     SPost=SJoint/SMarg
@@ -229,21 +229,19 @@ def inferClass_naiveBayes(testData,testLabel,muc,Cc):#more accurate features of 
 
     if(TEST==1):
         print("error NaiveBayes posterior")
-        posterior=numpy.load('Posterior_NaiveBayes.npy')
+        posterior=numpy.load('solution/Posterior_NaiveBayes.npy')
         print((posterior-SPost).max())
         print("error NaiveBayes joint")
-        joint=numpy.load('SJoint_NaiveBayes.npy')
+        joint=numpy.load('solution/SJoint_NaiveBayes.npy')
         print((joint-SJoint).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
     return (predictedLabel,acc)
 
-def inferClassLog_naiveBayes(testData,testLabel,muc,Cc):
+def inferClassLog_naiveBayes(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc[:,i])
-    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting *(4,1)->*(4,50)
+        S[i,:]=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc[:,i])
+    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
     l=SJoint.argmax(axis=0)
     SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
     SPost=SJoint-SMarg
@@ -254,26 +252,25 @@ def inferClassLog_naiveBayes(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error NaiveBayes log posterior")
-        posterior=numpy.load('logPosterior_NaiveBayes.npy')
+        posterior=numpy.load('solution/logPosterior_NaiveBayes.npy')
         print((posterior-SPost).max())
         print("error NaiveBayes log joint")
-        joint=numpy.load('logSJoint_NaiveBayes.npy')
+        joint=numpy.load('solution/logSJoint_NaiveBayes.npy')
         print((joint-SJoint).max())
-        print("error NaiveBayes log joint LO")
-        LOO_joint=numpy.load('LOO_logSJoint_NaiveBayes.npy')
-        print("NA")
         print("error NaiveBayes log marginal")
-        marginal=numpy.load('logMarginal_NaiveBayes.npy')
+        marginal=numpy.load('solution/logMarginal_NaiveBayes.npy')
         print((marginal-SMarg).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
+    if(TEST==2):
+        print("error NaiveBayes Leave One Out log joint")
+        print((VJoint-SJoint).max())
+
     return (predictedLabel,acc)
 
 def inferClass_tied(testData,testLabel,muc,Cc):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_pdf(testData,muc[:,:,i],Cc)
+        S[i,:]=GAU_ND_pdf(testData,muc[:,:,i],Cc)
     SJoint=S*vcol(numpy.array(PC))
     SMarg=vrow(SJoint.sum(axis=0))    
     SPost=SJoint/SMarg
@@ -284,21 +281,19 @@ def inferClass_tied(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error Tied MVG posterior")
-        posterior=numpy.load('Posterior_TiedMVG.npy')
+        posterior=numpy.load('solution/Posterior_TiedMVG.npy')
         print((posterior-SPost).max())
         print("error Tied MVG joint")
-        joint=numpy.load('SJoint_TiedMVG.npy')
+        joint=numpy.load('solution/SJoint_TiedMVG.npy')
         print((joint-SJoint).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
     return (predictedLabel,acc)
 
-def inferClassLog_tied(testData,testLabel,muc,Cc):
+def inferClassLog_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_logpdf(testData,muc[:,:,i],Cc)
-    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting *(4,1)->*(4,50)
+        S[i,:]=GAU_ND_logpdf(testData,muc[:,:,i],Cc)
+    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
     l=SJoint.argmax(axis=0)
     SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
     SPost=SJoint-SMarg
@@ -309,26 +304,25 @@ def inferClassLog_tied(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error Tied MVG log posterior")
-        posterior=numpy.load('logPosterior_TiedMVG.npy')
+        posterior=numpy.load('solution/logPosterior_TiedMVG.npy')
         print((posterior-SPost).max())
         print("error Tied MVG log joint")
-        joint=numpy.load('logSJoint_TiedMVG.npy')
+        joint=numpy.load('solution/logSJoint_TiedMVG.npy')
         print((joint-SJoint).max())
-        print("error Tied MVG log joint LO")
-        LOO_joint=numpy.load('LOO_logSJoint_TiedMVG.npy')
-        print("NA")
         print("error Tied MVG log marginal")
-        marginal=numpy.load('logMarginal_TiedMVG.npy')
+        marginal=numpy.load('solution/logMarginal_TiedMVG.npy')
         print((marginal-SMarg).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
+    if(TEST==2):
+        print("error Tied MVG Leave One Out log joint")
+        print((VJoint-SJoint).max())
+    
     return (predictedLabel,acc)
 
 def inferClass_naiveBayes_tied(testData,testLabel,muc,Cc):#more accurate features of my data are uncorrelated (converge with less training data)
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_pdf_naiveBayes(testData,muc[:,:,i],Cc)
+        S[i,:]=GAU_ND_pdf_naiveBayes(testData,muc[:,:,i],Cc)
     SJoint=S*vcol(numpy.array(PC))
     SMarg=vrow(SJoint.sum(axis=0))    
     SPost=SJoint/SMarg
@@ -339,21 +333,19 @@ def inferClass_naiveBayes_tied(testData,testLabel,muc,Cc):#more accurate feature
 
     if(TEST==1):
         print("error TiedNaiveBayes posterior")
-        posterior=numpy.load('Posterior_TiedNaiveBayes.npy')
+        posterior=numpy.load('solution/Posterior_TiedNaiveBayes.npy')
         print((posterior-SPost).max())
         print("error TiedNaiveBayes joint")
-        joint=numpy.load('SJoint_TiedNaiveBayes.npy')
+        joint=numpy.load('solution/SJoint_TiedNaiveBayes.npy')
         print((joint-SJoint).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
     return (predictedLabel,acc)
 
-def inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc):
+def inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     S=numpy.zeros((len(nToLabel),testData.shape[1]))
     for i in range(len(nToLabel)):
-        S[i,:]+=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc)
-    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting *(4,1)->*(4,50)
+        S[i,:]=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc)
+    SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
     l=SJoint.argmax(axis=0)
     SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
     SPost=SJoint-SMarg
@@ -364,20 +356,19 @@ def inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error TiedNaiveBayes log posterior")
-        posterior=numpy.load('logPosterior_TiedNaiveBayes.npy')
+        posterior=numpy.load('solution/logPosterior_TiedNaiveBayes.npy')
         print((posterior-SPost).max())
         print("error TiedNaiveBayes log joint")
-        joint=numpy.load('logSJoint_TiedNaiveBayes.npy')
+        joint=numpy.load('solution/logSJoint_TiedNaiveBayes.npy')
         print((joint-SJoint).max())
-        print("error TiedNaiveBayes log joint LO")
-        LOO_joint=numpy.load('LOO_logSJoint_TiedNaiveBayes.npy')
-        print("NA")
         print("error TiedNaiveBayes log marginal")
-        marginal=numpy.load('logMarginal_TiedNaiveBayes.npy')
+        marginal=numpy.load('solution/logMarginal_TiedNaiveBayes.npy')
         print((marginal-SMarg).max())
 
-    if ERROR_RATE_ON_SINGLE_FOLD:
-        print("error rate: %f"%(1-acc))
+    if(TEST==2):
+        print("error TiedNaiveBayes Leave One Out log joint")
+        print((VJoint-SJoint).max())
+    
     return (predictedLabel,acc)
 
 def KFold(D,L,k,seed=0,type=0):##type: 0 = MVG, 1 = Naive-Bayes, 2 = tied Cov, 3 = tied Cov+naive-Bayes
@@ -385,7 +376,19 @@ def KFold(D,L,k,seed=0,type=0):##type: 0 = MVG, 1 = Naive-Bayes, 2 = tied Cov, 3
     numpy.random.seed(seed)
     idx=numpy.random.permutation(D.shape[1])
     acc=0.0
+
+    match type:
+        case 4:
+            LOOJoints=numpy.load('solutions/LOO_logSJoint_MVG.npy')
+        case 5:
+            LOOJoints=numpy.load('solutions/LOO_logSJoint_NaiveBayes.npy')
+        case 6:
+            LOOJoints=numpy.load('solutions/LOO_logSJoint_TiedMVG.npy')
+        case 7:
+            LOOJoints=numpy.load('solutions/LOO_logSJoint_TiedNaiveBayes.npy')
+
     for i in range(k):
+
         idxTrain=numpy.zeros(D.shape[1]-nFold,dtype=numpy.int32)
         idxTrain[:i*nFold]=idx[:i*nFold]
         idxTrain[i*nFold:]=idx[(i+1)*nFold:]
@@ -394,8 +397,7 @@ def KFold(D,L,k,seed=0,type=0):##type: 0 = MVG, 1 = Naive-Bayes, 2 = tied Cov, 3
         testData=D[:,idxTest]
         trainLabel=L[idxTrain]
         testLabel=L[idxTest]
-        if ERROR_RATE_ON_SINGLE_FOLD:
-            print("training set:%d"%(i+1))
+
         match type:#Cc is in different shape
             case 0:
                 (muc,Cc)=MVG(trainData,trainLabel)#Cc.shape=(n_attr,n_attr,n_class)
@@ -411,16 +413,16 @@ def KFold(D,L,k,seed=0,type=0):##type: 0 = MVG, 1 = Naive-Bayes, 2 = tied Cov, 3
                 (_,partialAcc)=inferClass_naiveBayes_tied(testData,testLabel,muc,Cc)
             case 4:
                 (muc,Cc)=MVG(trainData,trainLabel)#Cc.shape=(n_attr,n_attr,n_class)
-                (_,partialAcc)=inferClassLog(testData,testLabel,muc,Cc)
+                (_,partialAcc)=inferClassLog(testData,testLabel,muc,Cc,VJoint=vcol(LOOJoints[:,idx[i]]))
             case 5:
                 (muc,Cc)=MVG_NaiveBayes(trainData,trainLabel)#Cc.shape=(n_attr,n_class)
-                (_,partialAcc)=inferClassLog_naiveBayes(testData,testLabel,muc,Cc)
+                (_,partialAcc)=inferClassLog_naiveBayes(testData,testLabel,muc,Cc,VJoint=vcol(LOOJoints[:,idx[i]]))
             case 6:
                 (muc,Cc)=MVG_tied(trainData,trainLabel)#Cc.shape=(n_attr,n_attr)
-                (_,partialAcc)=inferClassLog_tied(testData,testLabel,muc,Cc)
+                (_,partialAcc)=inferClassLog_tied(testData,testLabel,muc,Cc,VJoint=vcol(LOOJoints[:,idx[i]]))
             case 7:
                 (muc,Cc)=MVG_naiveBayes_tied(trainData,trainLabel)#Cc.shape=(n_attr)
-                (_,partialAcc)=inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc)
+                (_,partialAcc)=inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc,VJoint=vcol(LOOJoints[:,idx[i]]))
 
         acc+=partialAcc
 
@@ -461,3 +463,6 @@ if __name__=='__main__':
         KFold(labeledData.dsAttributes,labeledData.dsLabel,150,seed=0,type=6)
         print("leave one out Naive_Bayes tied covariance log:")
         KFold(labeledData.dsAttributes,labeledData.dsLabel,150,seed=0,type=7)
+    
+    print("epsilon of float (numpy.float64) ")
+    print(numpy.finfo(float).eps)
