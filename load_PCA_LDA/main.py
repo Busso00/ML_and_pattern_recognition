@@ -263,8 +263,8 @@ def LDA_2proj(data,label):#supervised
     Sb=between_class_covariance_M(data,label)
     
     U,eigv1,_=numpy.linalg.svd(Sw)
-    P1=(U@numpy.diag(1.0/(eigv1**0.5)))@U.T
-    SBT=(P1@Sb)@P1.T#transformed between class covariance
+    P1=U@numpy.diag(1.0/(eigv1**0.5))@U.T
+    SBT=P1@Sb@P1.T#transformed between class covariance
     P2,eigv,_=numpy.linalg.svd(SBT)
     #eigenvalue Sw^-1@Sb , only C-1 eigenvectors are !=0 -> useless random eigenvectors
     W=P1.T@P2[:,0:m]
@@ -325,7 +325,7 @@ def visualizeData(labeledData):
     corrM(labeledData.dsAttributes)
 
 def testPCA(labeledData):
-    CompareM=numpy.load("IRIS_PCA_matrix_m4.npy")
+    CompareM=numpy.load("solutions/IRIS_PCA_matrix_m4.npy")
     print("Compare matrix:")
     print(CompareM)
     testDIR=4
@@ -335,7 +335,7 @@ def testPCA(labeledData):
     plot_scatter(projectedData,labeledData.dsLabel,useUnnamed=True)
     #since the basis is orthonormal if P_not_T=CompareM <->PT@CompareM=I 
     print("check if PCA is valid")
-    print(P_not_T.T@CompareM)
+    print((P_not_T.T-CompareM))
 
     projectedData,P_not_T=PCA_treshold(labeledData.dsAttributes,1)
     plot_hist(projectedData,labeledData.dsLabel,useUnnamed=True)
@@ -359,7 +359,7 @@ def testPCA(labeledData):
     print(P_not_T.T@CompareM)
 
 def testLDA(labeledData):
-    CompareM=numpy.load("IRIS_LDA_matrix_m2.npy")
+    CompareM=numpy.load("solutions/IRIS_LDA_matrix_m2.npy")
     print("Compare matrix:")
     print(CompareM)
 

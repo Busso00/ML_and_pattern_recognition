@@ -9,7 +9,7 @@ attributeToN={'Sepal-length':0,'Sepal-width':1,'Petal-length':2,'Petal-width':3}
 nToAttribute=['Sepal-length','Sepal-width','Petal-length','Petal-width']
 PC=[1/3,1/3,1/3]
 FILENAME="iris.csv"
-TEST=2
+TEST=1
 
 def vcol(v):
     return v.reshape((v.size,1))
@@ -116,8 +116,10 @@ def GAU_ND_pdf(X,mu,C):#compute only one
     const=(numpy.pi*2)**(-0.5*M)
     det=numpy.linalg.det(C)
     L=numpy.linalg.inv(C)
+    #for i in range(data.shape[1]):
+    #    Pdata[i]=-1/2*XC[:,i].T@L@XC[:,i]
     #efficient way
-    v=(XC*numpy.dot(L,XC)).sum(axis=0)
+    v=(XC*(L@XC)).sum(axis=0)
     return const*(det**-0.5)*numpy.exp(-0.5*v)
 
 def GAU_ND_logpdf(X,mu,C):
@@ -126,8 +128,10 @@ def GAU_ND_logpdf(X,mu,C):
     const=-0.5*M*numpy.log(2*numpy.pi)
     logdet=numpy.linalg.slogdet(C)[1]
     L=numpy.linalg.inv(C)
+    #for i in range(data.shape[1]):
+    #    Pdata[i]=-1/2*XC[:,i].T@L@XC[:,i]
     #efficient way
-    v=(XC*numpy.dot(L,XC)).sum(axis=0)
+    v=(XC*(L@XC)).sum(axis=0)
     return const-0.5*logdet-0.5*v
 
 def GAU_ND_pdf_naiveBayes(X,mu,C):#C is diagonal (diagonal vector)-> less computational expensive
@@ -177,10 +181,10 @@ def inferClass(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error MVG posterior")
-        posterior_MVG=numpy.load('solution/Posterior_MVG.npy')
+        posterior_MVG=numpy.load('solutions/Posterior_MVG.npy')
         print((posterior_MVG-SPost).max())
         print("error MVG joint")
-        joint_MVG=numpy.load('solution/SJoint_MVG.npy')
+        joint_MVG=numpy.load('solutions/SJoint_MVG.npy')
         print((joint_MVG-SJoint).max())
 
     return (predictedLabel,acc)
@@ -200,13 +204,13 @@ def inferClassLog(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
 
     if(TEST==1):
         print("error MVG log posterior")
-        posterior=numpy.load('solution/logPosterior_MVG.npy')
+        posterior=numpy.load('solutions/logPosterior_MVG.npy')
         print((posterior-SPost).max())
         print("error MVG log joint")
-        joint=numpy.load('solution/logSJoint_MVG.npy')
+        joint=numpy.load('solutions/logSJoint_MVG.npy')
         print((joint-SJoint).max())
         print("error MVG log marginal")
-        marginal=numpy.load('solution/logMarginal_MVG.npy')
+        marginal=numpy.load('solutions/logMarginal_MVG.npy')
         print((marginal-SMarg).max())
 
     if(TEST==2):
@@ -229,10 +233,10 @@ def inferClass_naiveBayes(testData,testLabel,muc,Cc):#more accurate features of 
 
     if(TEST==1):
         print("error NaiveBayes posterior")
-        posterior=numpy.load('solution/Posterior_NaiveBayes.npy')
+        posterior=numpy.load('solutions/Posterior_NaiveBayes.npy')
         print((posterior-SPost).max())
         print("error NaiveBayes joint")
-        joint=numpy.load('solution/SJoint_NaiveBayes.npy')
+        joint=numpy.load('solutions/SJoint_NaiveBayes.npy')
         print((joint-SJoint).max())
 
     return (predictedLabel,acc)
@@ -252,13 +256,13 @@ def inferClassLog_naiveBayes(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
 
     if(TEST==1):
         print("error NaiveBayes log posterior")
-        posterior=numpy.load('solution/logPosterior_NaiveBayes.npy')
+        posterior=numpy.load('solutions/logPosterior_NaiveBayes.npy')
         print((posterior-SPost).max())
         print("error NaiveBayes log joint")
-        joint=numpy.load('solution/logSJoint_NaiveBayes.npy')
+        joint=numpy.load('solutions/logSJoint_NaiveBayes.npy')
         print((joint-SJoint).max())
         print("error NaiveBayes log marginal")
-        marginal=numpy.load('solution/logMarginal_NaiveBayes.npy')
+        marginal=numpy.load('solutions/logMarginal_NaiveBayes.npy')
         print((marginal-SMarg).max())
 
     if(TEST==2):
@@ -281,10 +285,10 @@ def inferClass_tied(testData,testLabel,muc,Cc):
 
     if(TEST==1):
         print("error Tied MVG posterior")
-        posterior=numpy.load('solution/Posterior_TiedMVG.npy')
+        posterior=numpy.load('solutions/Posterior_TiedMVG.npy')
         print((posterior-SPost).max())
         print("error Tied MVG joint")
-        joint=numpy.load('solution/SJoint_TiedMVG.npy')
+        joint=numpy.load('solutions/SJoint_TiedMVG.npy')
         print((joint-SJoint).max())
 
     return (predictedLabel,acc)
@@ -304,13 +308,13 @@ def inferClassLog_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
 
     if(TEST==1):
         print("error Tied MVG log posterior")
-        posterior=numpy.load('solution/logPosterior_TiedMVG.npy')
+        posterior=numpy.load('solutions/logPosterior_TiedMVG.npy')
         print((posterior-SPost).max())
         print("error Tied MVG log joint")
-        joint=numpy.load('solution/logSJoint_TiedMVG.npy')
+        joint=numpy.load('solutions/logSJoint_TiedMVG.npy')
         print((joint-SJoint).max())
         print("error Tied MVG log marginal")
-        marginal=numpy.load('solution/logMarginal_TiedMVG.npy')
+        marginal=numpy.load('solutions/logMarginal_TiedMVG.npy')
         print((marginal-SMarg).max())
 
     if(TEST==2):
@@ -333,10 +337,10 @@ def inferClass_naiveBayes_tied(testData,testLabel,muc,Cc):#more accurate feature
 
     if(TEST==1):
         print("error TiedNaiveBayes posterior")
-        posterior=numpy.load('solution/Posterior_TiedNaiveBayes.npy')
+        posterior=numpy.load('solutions/Posterior_TiedNaiveBayes.npy')
         print((posterior-SPost).max())
         print("error TiedNaiveBayes joint")
-        joint=numpy.load('solution/SJoint_TiedNaiveBayes.npy')
+        joint=numpy.load('solutions/SJoint_TiedNaiveBayes.npy')
         print((joint-SJoint).max())
 
     return (predictedLabel,acc)
@@ -356,13 +360,13 @@ def inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
 
     if(TEST==1):
         print("error TiedNaiveBayes log posterior")
-        posterior=numpy.load('solution/logPosterior_TiedNaiveBayes.npy')
+        posterior=numpy.load('solutions/logPosterior_TiedNaiveBayes.npy')
         print((posterior-SPost).max())
         print("error TiedNaiveBayes log joint")
-        joint=numpy.load('solution/logSJoint_TiedNaiveBayes.npy')
+        joint=numpy.load('solutions/logSJoint_TiedNaiveBayes.npy')
         print((joint-SJoint).max())
         print("error TiedNaiveBayes log marginal")
-        marginal=numpy.load('solution/logMarginal_TiedNaiveBayes.npy')
+        marginal=numpy.load('solutions/logMarginal_TiedNaiveBayes.npy')
         print((marginal-SMarg).max())
 
     if(TEST==2):
