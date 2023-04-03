@@ -144,7 +144,7 @@ def loglikelihood_ND(data,mu,C):#2022/2023
     return ll
 
 def test_gaussian():#test 2021/2022
-    XGAU = numpy.load('XGau.npy')
+    XGAU = numpy.load('solutions/XGau.npy')
     print('XGAU samples')
     print(XGAU)
     plot_hist(vrow(numpy.array(XGAU)),numpy.zeros(XGAU.size))#modified nbins
@@ -154,7 +154,7 @@ def test_gaussian():#test 2021/2022
     plt.plot(XPlot, GAU_pdf(XPlot, 1.0, 2.0))
     plt.show()
     #compare gaussians
-    pdfSol = numpy.load('CheckGAUPdf.npy')
+    pdfSol = numpy.load('solutions/CheckGAUPdf.npy')
     pdfGau = GAU_pdf(XPlot, 1.0, 2.0)
     print("mean distance between your function and gaussian:")
     print(numpy.abs(pdfSol - pdfGau).mean())
@@ -173,10 +173,10 @@ def test_gaussian():#test 2021/2022
 
 def test_gaussian_ND():#test 2021/2022
 
-    XND = numpy.load('XND.npy')
-    mu = numpy.load('muND.npy')
-    C = numpy.load('CND.npy')
-    pdfSol = numpy.load('llND.npy')
+    XND = numpy.load('solutions/XND.npy')
+    mu = numpy.load('solutions/muND.npy')
+    C = numpy.load('solutions/CND.npy')
+    pdfSol = numpy.load('solutions/llND.npy')
     pdfGau = GAU_ND_logpdf(XND, mu, C)
     print("error on 2021/2022 solution")
     print(numpy.abs(pdfSol - pdfGau).max())
@@ -190,15 +190,15 @@ def test_gaussian_ND2():#test 2022/2023
     plt.plot(XPlot.ravel(), numpy.exp(GAU_ND_logpdf(vrow(XPlot), m, C)))
     plt.show()
 
-    pdfSol = numpy.load('llGAU.npy')
+    pdfSol = numpy.load('solutions/llGAU.npy')
     pdfGau = GAU_ND_logpdf(vrow(XPlot), m, C)
     print("1-d error")
     print(numpy.abs(pdfSol - pdfGau).max())
 
-    XND = numpy.load('XND2.npy')
-    mu = numpy.load('muND2.npy')
-    C = numpy.load('CND2.npy')
-    pdfSol = numpy.load('llND2.npy')
+    XND = numpy.load('solutions/XND2.npy')
+    mu = numpy.load('solutions/muND2.npy')
+    C = numpy.load('solutions/CND2.npy')
+    pdfSol = numpy.load('solutions/llND2.npy')
     pdfGau = GAU_ND_logpdf(XND, mu, C)
     print("error on 2022/2023 solution")
     print(numpy.abs(pdfSol - pdfGau).max())
@@ -212,7 +212,7 @@ def test_gaussian_ND2():#test 2022/2023
     print("loglikelihood for ML estimated parameters")
     print(loglikelihood_ND(XND,MLmu,MLC))
 
-    X1D=numpy.load('X1D.npy')
+    X1D=numpy.load('solutions/X1D.npy')
     (MLmu,MLC)=ML_parameter_ND_GAU(X1D)
     print("MLmu-1D")
     print(MLmu)
@@ -229,6 +229,6 @@ def test_gaussian_ND2():#test 2022/2023
     print(ll)
 
 if __name__=="__main__":
-    #test_gaussian()
-    #test_gaussian_ND()
+    test_gaussian()
+    test_gaussian_ND()
     test_gaussian_ND2()
