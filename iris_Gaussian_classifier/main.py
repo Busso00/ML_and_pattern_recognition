@@ -2,6 +2,7 @@ import numpy
 import matplotlib.pyplot as plt
 import numpy.linalg
 import scipy.linalg
+import scipy.special
 
 labelToN={'Iris-setosa':0,'Iris-versicolor':1,'Iris-virginica':2}
 nToLabel=['Iris-setosa','Iris-versicolor','Iris-virginica']
@@ -194,8 +195,9 @@ def inferClassLog(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     for i in range(len(nToLabel)):
         S[i,:]=GAU_ND_logpdf(testData,muc[:,:,i],Cc[:,:,i])
     SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
-    l=SJoint.argmax(axis=0)
-    SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    #l=SJoint.argmax(axis=0)
+    #SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    SMarg=scipy.special.logsumexp(SJoint,axis=0)
     SPost=SJoint-SMarg
     predictedLabel=numpy.argmax(SPost,axis=0)
     
@@ -246,8 +248,9 @@ def inferClassLog_naiveBayes(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     for i in range(len(nToLabel)):
         S[i,:]=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc[:,i])
     SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
-    l=SJoint.argmax(axis=0)
-    SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    #l=SJoint.argmax(axis=0)
+    #SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    SMarg=scipy.special.logsumexp(SJoint,axis=0)
     SPost=SJoint-SMarg
     predictedLabel=numpy.argmax(SPost,axis=0)
     
@@ -298,8 +301,9 @@ def inferClassLog_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     for i in range(len(nToLabel)):
         S[i,:]=GAU_ND_logpdf(testData,muc[:,:,i],Cc)
     SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
-    l=SJoint.argmax(axis=0)
-    SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    #l=SJoint.argmax(axis=0)
+    #SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    SMarg=scipy.special.logsumexp(SJoint,axis=0)
     SPost=SJoint-SMarg
     predictedLabel=numpy.argmax(SPost,axis=0)
     
@@ -350,8 +354,9 @@ def inferClassLog_naiveBayes_tied(testData,testLabel,muc,Cc,VJoint=[0,0,0]):
     for i in range(len(nToLabel)):
         S[i,:]=GAU_ND_logpdf_naiveBayes(testData,muc[:,:,i],Cc)
     SJoint=S+numpy.log(vcol(numpy.array(PC))) #use broadcasting (4,1)->(4,50)
-    l=SJoint.argmax(axis=0)
-    SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    #l=SJoint.argmax(axis=0)
+    #SMarg=l+numpy.log((numpy.exp(SJoint-l).sum(axis=0)))
+    SMarg=scipy.special.logsumexp(SJoint,axis=0)
     SPost=SJoint-SMarg
     predictedLabel=numpy.argmax(SPost,axis=0)
     
