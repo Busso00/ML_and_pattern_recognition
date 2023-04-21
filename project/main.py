@@ -1,5 +1,5 @@
 #
-#Progetto Biometric Identity Verification
+#Progetto Biometric Identity Verification per il corso Machine Learning and Pattern Recognition di Federico Bussolino e Francine Ombala
 
 #initial consideration: from corcoefficient matrix seen high correlation bw attr:
 #lot of attributes are higly correlated
