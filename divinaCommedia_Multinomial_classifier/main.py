@@ -26,6 +26,7 @@ def wordProbability(D,count):
 
 labelToN={'Inf':0,'Pur':1,'Par':2}
 nToLabel=['Inf','Pur','Par']
+PC=[1/3,1/3,1/3]
 
 def inferClass(D,P,nLabel):
     pred=numpy.zeros(len(D),dtype=numpy.int32)
@@ -34,6 +35,7 @@ def inferClass(D,P,nLabel):
         Vword=doc.split(' ')
         ll=numpy.zeros(nLabel)
         for c in range(nLabel):
+            ll[c]+=numpy.log(PC[c])
             for word in Vword:
                 if word in wordDictionary:
                     ll[c]+=numpy.log(P[wordDictionary[word],c])
