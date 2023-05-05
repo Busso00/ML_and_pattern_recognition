@@ -9,32 +9,12 @@ def vcol(v):
 def vrow(v):
     return v.reshape((1,v.size))
 
-def numerical_solve1():
-    def f(values):
-        y = values[0]
-        z = values[1]
-        return (y+3)**2 + numpy.sin(y) + (z+1)**2
-    
-    values=numpy.zeros((2,))
-
-    print(scipy.optimize.fmin_l_bfgs_b(f,values,approx_grad=True))
-
-def numerical_solve2():
-    def f(values):
-        y = values[0]
-        z = values[1]
-        return (y+3)**2 + numpy.sin(y) + (z+1)**2,numpy.array([ 2*(y+3) + numpy.cos(y) , 2*(z+1)] )
-    
-    values=numpy.zeros((2,))
-
-    print(scipy.optimize.fmin_l_bfgs_b(f,values))
-
 def load_iris_binary():
-    D,L = sklearn.datasets.load_iris()['data'].T, sklearn.datasets.load_iris()['target']
-    D = D[:, L != 0] #remove 1 class since problem must be binary
-    L = L[L != 0] #remove label of 1 class since problem must be binary
-    L[L == 2] = 0 #remap label 2 to 1
-    return D,L
+    attributes,label = sklearn.datasets.load_iris()['data'].T, sklearn.datasets.load_iris()['target']
+    attributes = attributes[:, label != 0] #remove 1 class since problem must be binary
+    label = label[label != 0] #remove label of 1 class since problem must be binary
+    label[label == 2] = 0 #remap label 2 to 1
+    return attributes,label
 
 def split_db_2tol(D,L,seed=0):
 
@@ -52,12 +32,12 @@ def split_db_2tol(D,L,seed=0):
     return (trainData,trainLabel),(testData,testLabel)
 
 def logreg_solve(trainData,trainLabel,l):
-
-    logreg_obj=logreg_obj_wrap(trainData,trainLabel,l)
-    wbopt=numpy.zeros((trainData.shape[0]+1,))
-    (wbopt,Jwbmin,_)=scipy.optimize.fmin_l_bfgs_b(logreg_obj,wbopt,approx_grad=True,factr=1000.0)
-    print("lambda: %f, Jwbmin: %f" % (l,Jwbmin))
-    return (wbopt[0:-1], wbopt[-1])
+   
+    logreg_obj=logreg_obj_wrap(trainData,trainLabel,l)#function
+    wbopt=numpy.zeros((trainData.shape[0]+1,))#params (to modify)
+    (wbopt,Jwbmin,_)=scipy.optimize.fmin_l_bfgs_b(logreg_obj,wbopt,approx_grad=True)#optimize paramiters
+    print("lambda: %f, Jwbmin: %f" % (l,Jwbmin))#check min result
+    return (wbopt[0:-1], wbopt[-1])# return w,b
 
 
 
@@ -86,25 +66,22 @@ def inferClass_logReg(w,b,testData,testLabel):
     return (predictedLabel,acc)
 
 if __name__ == "__main__":
-    #tested
-    #print(numerical_solve1())
-    #print(numerical_solve2())
     
-    #logistic regression biary 
-    D,L = load_iris_binary()
-    (DTR, LTR), (DTE, LTE) = split_db_2tol(D,L)
+    #binary logistic regression
+    attributes , label = load_iris_binary()
+    (trainData,trainLabel),(testData,testLabel) = split_db_2tol(attributes,label)
 
-    (w,b)=logreg_solve(DTR,LTR,10**-6)
-    (_,acc)=inferClass_logReg(w,b,DTE,LTE)
+    (w,b)=logreg_solve(trainData,trainLabel,10**-6)
+    (_,acc)=inferClass_logReg(w,b,testData,testLabel)
     print("accuracy:%f"%acc)
-    (w,b)=logreg_solve(DTR,LTR,10**-3)
-    (_,acc)=inferClass_logReg(w,b,DTE,LTE)
+    (w,b)=logreg_solve(trainData,trainLabel,10**-3)
+    (_,acc)=inferClass_logReg(w,b,testData,testLabel)
     print("accuracy:%f"%acc)
-    (w,b)=logreg_solve(DTR,LTR,10**-1)
-    (_,acc)=inferClass_logReg(w,b,DTE,LTE)
+    (w,b)=logreg_solve(trainData,trainLabel,10**-1)
+    (_,acc)=inferClass_logReg(w,b,testData,testLabel)
     print("accuracy:%f"%acc)
-    (w,b)=logreg_solve(DTR,LTR,1.0)
-    (_,acc)=inferClass_logReg(w,b,DTE,LTE)
+    (w,b)=logreg_solve(trainData,trainLabel,1.0)
+    (_,acc)=inferClass_logReg(w,b,testData,testLabel)
     print("accuracy:%f"%acc)
 
 
