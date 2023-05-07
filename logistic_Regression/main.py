@@ -39,8 +39,6 @@ def logreg_solve(trainData,trainLabel,l):
     print("lambda: %f, Jwbmin: %f" % (l,Jwbmin))#check min result
     return (wbopt[0:-1], wbopt[-1])# return w,b
 
-
-
 def logreg_obj_wrap(trainData,trainLabel,l):#useful closure for defining at runtime parameters that we don't vary in order to maximize
     
     def logreg_obj(wb):#wb=4+1 for iris dataset
