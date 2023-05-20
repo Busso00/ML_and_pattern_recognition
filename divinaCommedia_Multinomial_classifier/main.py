@@ -43,6 +43,8 @@ def inferClass(D,P,nLabel):
         j+=1
     return pred
 
+
+
 def evalAccuracy(pred,actual):
     v=pred==actual
     acc=v.sum()/actual.shape[0]
