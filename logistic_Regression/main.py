@@ -47,13 +47,11 @@ def logreg_solve(trainData,trainLabel,l):
 def logreg_obj_wrap(trainData,trainLabel,l):#useful closure for defining at runtime parameters that we don't vary in order to maximize
     
     n=trainData.shape[1]#variables that doesnt change between calls
-
+    zi=-(2*trainLabel-1)
     def logreg_obj(wb):#wb=4+1 for iris dataset
-
         w, b = wb[0:-1], wb[-1]#unpacking from 1-d array
-
         Jwb=0.0
-        zi=-(2*trainLabel-1)
+        
         logpost=vrow(w)@trainData+vcol(b)
         for i in range(n):
             Jwb += numpy.logaddexp(0,zi[i]*(logpost[0,i]))
