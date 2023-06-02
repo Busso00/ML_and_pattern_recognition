@@ -482,7 +482,7 @@ def incrMinDCF(binScores,testLabels,pi1,CostFN,CostFP):#incremental more efficie
         if(normDCF<minDCF):
             minDCF=normDCF
             minThreshold=binScoreLabels[1][i]
-        #update confusion matrix (change only 1 value)
+        #update confusion matrix (change only 2 values)
         confM[0][int(binScoreLabels[1][i])] += 1 
         confM[1][int(binScoreLabels[1][i])] -= 1
 
