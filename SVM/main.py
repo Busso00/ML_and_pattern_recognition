@@ -166,7 +166,6 @@ def test_SVM_primal_dual(trainData, trainLabel, testData, testLabel):
 
 if __name__ == "__main__":
     
-    #linear SVM
     attributes , label = load_iris_binary()
     (trainData,trainLabel),(testData,testLabel) = split_db_2tol(attributes,label)
 
