@@ -29,147 +29,295 @@ def split_db_2tol(D,L,seed=0):
     idxTrain=idx[:nTrain]
     idxTest=idx[nTrain:]
 
-    trainData=D[:,idxTrain]
-    testData=D[:,idxTest]
-    trainLabel=L[idxTrain]
-    testLabel=L[idxTest]
+    trainDataV=D[:,idxTrain]
+    testDataV=D[:,idxTest]
+    trainLabelV=L[idxTrain]
+    testLabelV=L[idxTest]
 
-    return (trainData,trainLabel),(testData,testLabel)
+    return (trainDataV,trainLabelV),(testDataV,testLabelV)
 
-def SVM_primal_solve(trainData,trainLabel,K,C):
-   
-    SVM_obj=SVM_primal_obj_wrap(trainData,trainLabel,K,C)#function
-    wbopt=numpy.zeros((trainData.shape[0]+1,))#params (to modify)
-    (wbopt,Jwbmin,_)=scipy.optimize.fmin_l_bfgs_b(SVM_obj,wbopt,approx_grad=True,factr=1.0)#optimize paramiters
+def SVMPrimalSolve(trainDataV,trainLabelV,K,C):
+    #C, K are hyperparameters of the model
+    N_ATTRS=trainDataV.shape[0]
+
+    SVMobj=SVMPrimalObjWrap(trainDataV,trainLabelV,K,C)#function
+    wbopt=numpy.zeros((N_ATTRS+1,))#params (to modify)
+    (wbopt,Jwbmin,_)=scipy.optimize.fmin_l_bfgs_b(SVMobj,wbopt,approx_grad=True,factr=1.0)#optimize paramiters
     print("C: %f, K: %f, primal loss: %f" % (C,K,Jwbmin))#check min result
     return (wbopt[0:-1], wbopt[-1])# return w,b
 
 
-def SVM_primal_obj_wrap(trainData,trainLabel,K,C):#useful closure for defining at runtime parameters that we don't vary in order to maximize
+def SVMPrimalObjWrap(trainDataV,trainLabelV,K,C):#useful closure for defining at runtime parameters that we don't vary in order to maximize
+    #C, K are hyperparameters of the model
+    N_ATTRS=trainDataV.shape[0]
+    N_RECORDS=trainDataV.shape[1]
+
+    expandedDataV=numpy.zeros((N_ATTRS+1,N_RECORDS))
+    expandedDataV[0:-1,:]=trainDataV
+    expandedDataV[-1,:]=numpy.ones((N_RECORDS,))*K
+    zV=2*trainLabelV-1
+    #no use of H
     
-    expandedData=numpy.zeros((trainData.shape[0]+1,trainData.shape[1]))
-    expandedData[0:-1,:]=trainData
-    expandedData[-1,:]=numpy.ones((trainData.shape[1],))*K
-    G=expandedData.T@expandedData
-    zi=2*trainLabel-1
-    H=G*vrow(zi)*vcol(zi)
+    def SVMPrimalObj(wb):
+        regterm=(numpy.linalg.norm(wb)**2)/2#is actually objective function if class are perfectly separable (I assume they are not)
+        hingelossV=numpy.maximum(numpy.zeros(expandedDataV.shape[1]),1-zV*(vrow(wb)@expandedDataV))
+        return regterm+C*numpy.sum(hingelossV)
     
-    def SVM_primal_obj(wb):#wb=4+1 for iris dataset
-        
-        regterm=(numpy.linalg.norm(wb)**2)/2
-        hingelosses=numpy.maximum(numpy.zeros(expandedData.shape[1]),1-zi*(vrow(wb)@expandedData))
-        return regterm+C*numpy.sum(hingelosses)
-    
-    return SVM_primal_obj
+    return SVMPrimalObj
 
 
-def SVM_dual_solve(trainData,trainLabel,K,C):
-   
-    SVM_obj=SVM_dual_wrap(trainData,trainLabel,K,C)#function
-    alfaVopt=numpy.zeros((trainData.shape[1],))#params (to modify)
+def SVMDualSolve(trainDataV,trainLabelV,K,C):
+    #C, K are hyperparameters of the model
+    N_RECORDS=trainDataV.shape[1]
+
+    SVMobj=SVMDualWrap(trainDataV,trainLabelV,K)
+    alfaVopt=numpy.zeros((N_RECORDS,))
     alfaLimits=[]
-    for i in range(trainData.shape[1]):
+    for _ in range(N_RECORDS):
         alfaLimits.append((0,C))
-    (alfaVopt,Jwbmin,_)=scipy.optimize.fmin_l_bfgs_b(SVM_obj[0],alfaVopt,fprime=SVM_obj[1],bounds=alfaLimits,factr=1.0)#optimize paramiters
+    (alfaVopt,Jalfamin,_)=scipy.optimize.fmin_l_bfgs_b(SVMobj[0],alfaVopt,fprime=SVMobj[1],bounds=alfaLimits,factr=1.0)#optimize paramiters
     
-    return (alfaVopt,Jwbmin)# return w,b
+    return (alfaVopt,Jalfamin)# return w,b
 
-def SVM_dual_wrap(trainData,trainLabel,K,C):#useful closure for defining at runtime parameters that we don't vary in order to maximize
-    
-    expandedData=numpy.zeros((trainData.shape[0]+1,trainData.shape[1]))
-    expandedData[0:-1,:]=trainData
-    expandedData[-1,:]=numpy.ones((trainData.shape[1],))*K
-    G=expandedData.T@expandedData
-    zi=2*trainLabel-1
-    H=G*vrow(zi)*vcol(zi)
+def SVMDualWrap(trainDataV,trainLabelV,K):#useful closure for defining at runtime parameters that we don't vary in order to maximize
+    N_ATTRS=trainDataV.shape[0]
+    N_RECORDS=trainDataV.shape[1]
 
-    def SVM_dual_obj(alfaV):#wb=4+1 for iris dataset
+    expandedDataV=numpy.zeros((N_ATTRS+1,N_RECORDS))
+    expandedDataV[0:-1,:]=trainDataV
+    expandedDataV[-1,:]=numpy.ones((N_RECORDS,))*K
+    G=expandedDataV.T@expandedDataV
+    zV=2*trainLabelV-1
+    H=G*vrow(zV)*vcol(zV)
+
+    def SVMDualObj(alfaV):
         
         return vrow(alfaV)@H@vcol(alfaV)/2 - alfaV.sum()
     
-    def SVM_dual_gradient(alfaV):
+    def SVMDualGradient(alfaV):
 
-        return (H@vcol(alfaV) - 1 ).reshape((alfaV.shape[0],))
+        return (H@vcol(alfaV) - 1 ).ravel()
     
-    return (SVM_dual_obj,SVM_dual_gradient)
+    return (SVMDualObj,SVMDualGradient)
 
-def recover_primal(trainData,trainLabel,alfaV,K,C):
-    expandedData=numpy.zeros((trainData.shape[0]+1,trainData.shape[1]))
-    expandedData[0:-1,:]=trainData
-    expandedData[-1,:]=numpy.ones((trainData.shape[1],))*K
-    zi=2*trainLabel-1
-    wb = numpy.sum(alfaV*zi*expandedData,axis=1)
+def recoverPrimal(trainDataV,trainLabelV,alfaV,K,C):
+    N_ATTRS=trainDataV.shape[0]
+    N_RECORDS=trainDataV.shape[1]
+
+    expandedDataV=numpy.zeros((N_ATTRS+1,N_RECORDS))
+    expandedDataV[0:-1,:]=trainDataV
+    expandedDataV[-1,:]=numpy.ones((N_RECORDS,))*K
+    zV=2*trainLabelV-1
+    wb = numpy.sum(alfaV*zV*expandedDataV,axis=1)
     regterm=(numpy.linalg.norm(wb)**2)/2
-    hingelosses=numpy.maximum(numpy.zeros(expandedData.shape[1]),1-zi*(vrow(wb)@expandedData))
-    Jw = regterm+C*numpy.sum(hingelosses)
+    hingelossV=numpy.maximum(numpy.zeros(expandedDataV.shape[1]),1-zV*(vrow(wb)@expandedDataV))
+    Jw = regterm+C*numpy.sum(hingelossV)
     return (wb,Jw)
 
-def infer_class_SVM(wb,testData,testLabel,K):
+def inferClassLinearSVM(wb,testDataV,testLabelV,K):
+    N_RECORDS=testDataV.shape[1]
 
     w,b = wb[0:-1],wb[-1]
-    scoreV=vrow(w)@testData+b*K
-    predictedLabel=numpy.where(scoreV>0,1,0)
-    A=predictedLabel==testLabel
-    acc=A.sum()/float(testData.shape[1])
+    scoreV=vrow(w)@testDataV+b*K
+    predictedLabelV=numpy.where(scoreV>0,1,0)
+    A=predictedLabelV==testLabelV
+    acc=A.sum()/float(N_RECORDS)
 
-    return (scoreV,predictedLabel,acc)
+    return (scoreV,predictedLabelV,acc)
 
-def test_SVM_primal(trainData, trainLabel):
+def polinKernelSVMSolve(trainDataV,trainLabelV,C,eps=0.0,degree=2,const=0.0):
+    #C, eps, const are hyperparameters of the model
+    N_RECORDS=trainDataV.shape[1]
 
-    SVM_primal_solve(trainData, trainLabel,1,0.1)
-    SVM_primal_solve(trainData, trainLabel,1,1.0)
-    SVM_primal_solve(trainData, trainLabel,1,10.0)
-    SVM_primal_solve(trainData, trainLabel,10,0.1)
-    SVM_primal_solve(trainData, trainLabel,10,1.0)
-    SVM_primal_solve(trainData, trainLabel,10,10.0)
+    SVMobj=polinKernelSVMWrap(trainDataV,trainLabelV,eps=eps,degree=degree,const=const)#function
+    alfaVopt=numpy.zeros((N_RECORDS,))#params (to modify)
+    alfaLimits=[]
+    for i in range(N_RECORDS):
+        alfaLimits.append((0,C))
+    (alfaVopt,Jalfamin,_)=scipy.optimize.fmin_l_bfgs_b(SVMobj[0],alfaVopt,fprime=SVMobj[1],bounds=alfaLimits,factr=1.0)#optimize paramiters
+    
+    return (alfaVopt,Jalfamin)# return alfaV,loss (dual) , also JAlfamin
+
+def polinKernelSVMWrap(trainDataV,trainLabelV,eps=0,degree=2,const=0):#useful closure for defining at runtime parameters that we don't vary in order to maximize
+    #eps, const, degree are hyperparameters of the model
+
+    kernelM=(trainDataV.T@trainDataV + const)**degree + eps
+    zV=2*trainLabelV-1
+    H=kernelM*vrow(zV)*vcol(zV)
+
+    def SVMObj(alfaV):
+        
+        return vrow(alfaV)@H@vcol(alfaV)/2 - alfaV.sum()
+    
+    def SVMGradient(alfaV):
+
+        return (H@vcol(alfaV) - 1 ).ravel()
+    
+    return (SVMObj,SVMGradient)
+
+def inferClassPolinSVM(trainDataV,trainLabelV,testDataV,testLabelV,alfaV,eps=0.0,degree=2,const=0.0):
+    N_RECORDS=testDataV.shape[1]
+
+    zV=2*trainLabelV-1
+    
+    scoreV = (vcol(zV)*vcol(alfaV)*((trainDataV.T@testDataV + const)**degree + eps)).sum(axis=0)
+    
+    predictedLabelV=numpy.where(scoreV>0,1,0)
+    A=predictedLabelV==testLabelV
+    acc=A.sum()/float(N_RECORDS)
+
+    return (scoreV,predictedLabelV,acc)
 
 
-def test_SVM_primal_dual(trainData, trainLabel, testData, testLabel):
+def expKernelSVMWrap(trainDataV,trainLabelV,eps=0.0,gamma=1.0):#useful closure for defining at runtime parameters that we don't vary in order to maximize
+    N_RECORDS=trainDataV.shape[1]
+    
+    kernelM=numpy.zeros((N_RECORDS,N_RECORDS))
+    for row in range(N_RECORDS):
+        kernelM[row,:]=numpy.exp(-gamma*numpy.linalg.norm(trainDataV-vcol(trainDataV[:,row]),axis=0)**2)+eps
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,1,0.1)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,1,0.1)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,0.1,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,1)
+    zV=2*trainLabelV-1
+    H=kernelM*vrow(zV)*vcol(zV)
+
+    def SVMObj(alfaV):
+        
+        return vrow(alfaV)@H@vcol(alfaV)/2 - alfaV.sum()
+    
+    def SVMGradient(alfaV):
+
+        return (H@vcol(alfaV) - 1 ).ravel()
+    
+    return (SVMObj,SVMGradient)
+    
+def expKernelSVMSolve(trainDataV,trainLabelV,C,eps=0.0,gamma=0.0):
+    #C, eps, const are hyperparameters of the model
+    N_RECORDS=trainDataV.shape[1]
+
+    SVMobj=expKernelSVMWrap(trainDataV,trainLabelV,eps=eps,gamma=gamma)#function
+    alfaVopt=numpy.zeros((N_RECORDS,))#params (to modify)
+    alfaLimits=[]
+    for i in range(N_RECORDS):
+        alfaLimits.append((0,C))
+    (alfaVopt,Jalfamin,_)=scipy.optimize.fmin_l_bfgs_b(SVMobj[0],alfaVopt,fprime=SVMobj[1],bounds=alfaLimits,factr=1.0)#optimize paramiters
+    
+    return (alfaVopt,Jalfamin)# return alfaV,loss (dual) , also JAlfamin
+
+
+def inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV,alfaV,eps=0.0,gamma=1.0):
+    N_RECORDS=testDataV.shape[1]
+
+    zV=2*trainLabelV-1
+
+    scoreV = numpy.zeros((N_RECORDS,))
+
+    for t in range(N_RECORDS):
+        kernelVT=numpy.exp(-gamma*numpy.linalg.norm(trainDataV-vcol(testDataV[:,t]),axis=0)**2)+eps
+        scoreV[t] = (vrow(zV)*vrow(alfaV)*kernelVT).sum(axis=1)
+    
+    predictedLabelV=numpy.where(scoreV>0,1,0)
+    A=predictedLabelV==testLabelV
+    acc=A.sum()/float(N_RECORDS)
+
+    return (scoreV,predictedLabelV,acc)
+
+def test_SVM_primal(trainDataV, trainLabelV):
+
+    SVMPrimalSolve(trainDataV, trainLabelV,1,0.1)
+    SVMPrimalSolve(trainDataV, trainLabelV,1,1.0)
+    SVMPrimalSolve(trainDataV, trainLabelV,1,10.0)
+    SVMPrimalSolve(trainDataV, trainLabelV,10,0.1)
+    SVMPrimalSolve(trainDataV, trainLabelV,10,1.0)
+    SVMPrimalSolve(trainDataV, trainLabelV,10,10.0)
+
+
+def test_SVM_primal_dual(trainDataV, trainLabelV, testDataV, testLabelV):
+
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,1,0.1)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,1,0.1)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,0.1,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,1)
     print("error rate: %f" % (1-acc))
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,1,1.0)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,1,1.0)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,1,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,1)
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,1,1.0)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,1,1.0)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,1,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,1)
     print("error rate: %f" % (1-acc))
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,1,10.0)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,1,10.0)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,10,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,1)
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,1,10.0)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,1,10.0)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (1,10,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,1)
     print("error rate: %f" % (1-acc))
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,10,0.1)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,10,0.1)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,0.1,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,10)
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,10,0.1)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,10,0.1)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,0.1,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,10)
     print("error rate: %f" % (1-acc))
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,10,1.0)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,10,1.0)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,1,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,10)
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,10,1.0)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,10,1.0)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,1,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,10)
     print("error rate: %f" % (1-acc))
 
-    (alfaV,Jwp)=SVM_dual_solve(trainData, trainLabel,10,10.0)
-    (wb,Jwd)=recover_primal(trainData,trainLabel,alfaV,10,10.0)
-    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,10,Jwp,Jwd,Jwd+Jwp))
-    (_,_,acc)=infer_class_SVM(wb,testData,testLabel,10)
+    (alfaV,Jwbp)=SVMDualSolve(trainDataV, trainLabelV,10,10.0)
+    (wb,loss)=recoverPrimal(trainDataV,trainLabelV,alfaV,10,10.0)
+    print("C: %f, K: %f, prial loss: %f,dual loss: %f, gap %f " % (10,10,Jwbp,loss,loss+Jwbp))
+    (_,_,acc)=inferClassLinearSVM(wb,testDataV,testLabelV,10)
     print("error rate: %f" % (1-acc))
 
+def test_SVM_kernel(trainDataV, trainLabelV, testDataV, testLabelV):
+    #polinomials --------------------------------
 
+    (alfaV,loss)=polinKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=0.0, degree=2, const=0.0)
+    print("eps: 0.0, const:0.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassPolinSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=0.0, degree=2, const=0.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=polinKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=1.0, degree=2, const=0.0)
+    print("eps: 1.0, const:0.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassPolinSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=1.0, degree=2, const=0.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=polinKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=0.0, degree=2, const=1.0)
+    print("eps: 0.0, const:1.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassPolinSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=0.0, degree=2, const=1.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=polinKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=1.0, degree=2, const=1.0)
+    print("eps: 1.0, const:1.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassPolinSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=1.0, degree=2, const=1.0)
+    print("error rate: %f" % (1-acc))
+    #exponentials ----------------------------------
+
+    (alfaV,loss)=expKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=0.0, gamma=1.0)
+    print("eps: 0.0, gamma: 1.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=0.0, gamma=1.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=expKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=0.0, gamma=10.0)
+    print("eps: 0.0, gamma: 10.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=0.0, gamma=10.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=expKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=1.0, gamma=1.0)
+    print("eps: 1.0, gamma: 1.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=1.0, gamma=1.0)
+    print("error rate: %f" % (1-acc))
+
+    (alfaV,loss)=expKernelSVMSolve(trainDataV, trainLabelV, 1.0, eps=1.0, gamma=10.0)
+    print("eps: 1.0, gamma: 10.0, dual loss: %f" % loss)
+    (_,_,acc)=inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV, alfaV, eps=1.0, gamma=10.0)
+    print("error rate: %f" % (1-acc))
 
 if __name__ == "__main__":
     
     attributes , label = load_iris_binary()
-    (trainData,trainLabel),(testData,testLabel) = split_db_2tol(attributes,label)
+    (trainDataV,trainLabelV),(testDataV,testLabelV) = split_db_2tol(attributes,label)
 
-    test_SVM_primal(trainData,trainLabel)
-    test_SVM_primal_dual(trainData,trainLabel,testData,testLabel)
-
+    test_SVM_primal(trainDataV,trainLabelV)
+    test_SVM_primal_dual(trainDataV,trainLabelV,testDataV,testLabelV)
+    test_SVM_kernel(trainDataV,trainLabelV,testDataV,testLabelV)
     
