@@ -8,6 +8,7 @@ nToLabel=['Iris-setosa','Iris-versicolor','Iris-virginica']
 attributeToN={'Sepal-length':0,'Sepal-width':1,'Petal-length':2,'Petal-width':3}
 nToAttribute=['Sepal-length','Sepal-width','Petal-length','Petal-width']
 
+PC = [1/2,1/2]
 def vcol(v):
     return v.reshape((v.size,1))
 
@@ -19,6 +20,7 @@ def load_iris_binary():
     attributes = attributes[:, label != 0] #remove 1 class since problem must be binary
     label = label[label != 0] #remove label of 1 class since problem must be binary
     label[label == 2] = 0 #remap label 2 to 1
+    
     return attributes,label
 
 def split_db_2tol(D,L,seed=0):
@@ -174,6 +176,7 @@ def expKernelSVMWrap(trainDataV,trainLabelV,eps=0.0,gamma=1.0):#useful closure f
     
     kernelM=numpy.zeros((N_RECORDS,N_RECORDS))
     for row in range(N_RECORDS):
+        #modify kernel
         kernelM[row,:]=numpy.exp(-gamma*numpy.linalg.norm(trainDataV-vcol(trainDataV[:,row]),axis=0)**2)+eps
 
     zV=2*trainLabelV-1
@@ -189,19 +192,21 @@ def expKernelSVMWrap(trainDataV,trainLabelV,eps=0.0,gamma=1.0):#useful closure f
     
     return (SVMObj,SVMGradient)
     
-def expKernelSVMSolve(trainDataV,trainLabelV,C,eps=0.0,gamma=0.0):
+
+def expKernelSVMSolve(trainDataV,trainLabelV,C,eps=0.0,gamma=0.0,p0=PC[0]):
     #C, eps, const are hyperparameters of the model
     N_RECORDS=trainDataV.shape[1]
-
+    p1=1-p0
     SVMobj=expKernelSVMWrap(trainDataV,trainLabelV,eps=eps,gamma=gamma)#function
     alfaVopt=numpy.zeros((N_RECORDS,))#params (to modify)
     alfaLimits=[]
+    rebalanceTermV=numpy.where(trainLabelV==0,p0/PC[0],p1/PC[1])
+
     for i in range(N_RECORDS):
-        alfaLimits.append((0,C))
+        alfaLimits.append((0,C*rebalanceTermV[i]))
     (alfaVopt,Jalfamin,_)=scipy.optimize.fmin_l_bfgs_b(SVMobj[0],alfaVopt,fprime=SVMobj[1],bounds=alfaLimits,factr=1.0)#optimize paramiters
     
     return (alfaVopt,Jalfamin)# return alfaV,loss (dual) , also JAlfamin
-
 
 def inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV,alfaV,eps=0.0,gamma=1.0):
     N_RECORDS=testDataV.shape[1]
@@ -211,6 +216,7 @@ def inferClassExpSVM(trainDataV,trainLabelV,testDataV,testLabelV,alfaV,eps=0.0,g
     scoreV = numpy.zeros((N_RECORDS,))
 
     for t in range(N_RECORDS):
+        #modify kernel
         kernelVT=numpy.exp(-gamma*numpy.linalg.norm(trainDataV-vcol(testDataV[:,t]),axis=0)**2)+eps
         scoreV[t] = (vrow(zV)*vrow(alfaV)*kernelVT).sum(axis=1)
     

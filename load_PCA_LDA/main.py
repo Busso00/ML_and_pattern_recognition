@@ -26,7 +26,11 @@ class DataArray:
     def __init__(self,listAttr,listLabel):
         self.dsAttributes=numpy.vstack(listAttr).T
         self.dsLabel=numpy.array(listLabel,dtype=numpy.int32)
-        
+
+
+def zNorm(data):
+    return (data-vcol(data.mean(axis=1)))/vcol(data.std(axis=1))
+
 def load(filename):
     try:
         f=open(filename,'r')
@@ -385,3 +389,5 @@ if __name__=="__main__":
     visualizeData(labeledData)
     testPCA(labeledData)#not invarint to linear transformation
     testLDA(labeledData)#invarint to linear transformation
+    print("normalized entrie")
+    print(zNorm(labeledData.dsAttributes))
